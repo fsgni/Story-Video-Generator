@@ -1,0 +1,193 @@
+{
+  "source_file": "output/texts/豚.txt",
+  "total_sentences": 31,
+  "total_duration": 135.2106666666667,
+  "audio_files": [
+    {
+      "id": 0,
+      "sentence": "孔子の名言の一つに、「礼にかなわざるものは見ず、聞かず、言わず、動かず」",
+      "audio_file": "audio_000.wav",
+      "duration": 6.293333333333333
+    },
+    {
+      "id": 1,
+      "sentence": "（礼にかなわざるものは見ず、聞かず、言わず、動かず）という言葉があります。",
+      "audio_file": "audio_001.wav",
+      "duration": 6.282666666666667
+    },
+    {
+      "id": 2,
+      "sentence": "これは『論語』の「顔淵篇」に収められており、紀元前5世紀頃、今から",
+      "audio_file": "audio_002.wav",
+      "duration": 7.232
+    },
+    {
+      "id": 3,
+      "sentence": "約2500年前の中国・春秋時代の思想家、孔子の教えです。",
+      "audio_file": "audio_003.wav",
+      "duration": 5.450666666666667
+    },
+    {
+      "id": 4,
+      "sentence": "この言葉が記された『論語』は、孔子の死後、弟子たちに",
+      "audio_file": "audio_004.wav",
+      "duration": 5.365333333333333
+    },
+    {
+      "id": 5,
+      "sentence": "よって編纂されたもので、紀元前5世紀頃、約2500年前の中国・春秋時代の",
+      "audio_file": "audio_005.wav",
+      "duration": 7.093333333333334
+    },
+    {
+      "id": 6,
+      "sentence": "記録です。",
+      "audio_file": "audio_006.wav",
+      "duration": 0.8426666666666667
+    },
+    {
+      "id": 7,
+      "sentence": "この名言の出典である『論語』は、中国の春秋時代、魯国（現在の山東省）出身",
+      "audio_file": "audio_007.wav",
+      "duration": 8.704
+    },
+    {
+      "id": 8,
+      "sentence": "の思想家、孔子（紀元前551年～紀元前479年）の言行録です。",
+      "audio_file": "audio_008.wav",
+      "duration": 7.978666666666666
+    },
+    {
+      "id": 9,
+      "sentence": "3.",
+      "audio_file": "audio_009.wav",
+      "duration": 0.736
+    },
+    {
+      "id": 10,
+      "sentence": "礼にかなわざるものは見ず、聞かず、言わず、動かず（礼に",
+      "audio_file": "audio_010.wav",
+      "duration": 5.44
+    },
+    {
+      "id": 11,
+      "sentence": "かなわざるものは見ず、聞かず、言わず、動かず）紀元前5世紀、魯国。",
+      "audio_file": "audio_011.wav",
+      "duration": 6.453333333333333
+    },
+    {
+      "id": 12,
+      "sentence": "春の風が穏やかに吹き抜けるある日、孔子と弟子たちは",
+      "audio_file": "audio_012.wav",
+      "duration": 3.936
+    },
+    {
+      "id": 13,
+      "sentence": "学堂に",
+      "audio_file": "audio_013.wav",
+      "duration": 0.8853333333333333
+    },
+    {
+      "id": 14,
+      "sentence": "集まり、礼について語り合っていた。",
+      "audio_file": "audio_014.wav",
+      "duration": 2.7306666666666666
+    },
+    {
+      "id": 15,
+      "sentence": "その日、子路（しろ）が不満げな顔で口を開いた。",
+      "audio_file": "audio_015.wav",
+      "duration": 4.629333333333333
+    },
+    {
+      "id": 16,
+      "sentence": "「先生、私はどうも礼というものがよく分かりません。」",
+      "audio_file": "audio_016.wav",
+      "duration": 3.968
+    },
+    {
+      "id": 17,
+      "sentence": "なぜ、そんなに形式ばった作法や礼儀にこだわる必要があるのでしょうか？",
+      "audio_file": "audio_017.wav",
+      "duration": 5.152
+    },
+    {
+      "id": 18,
+      "sentence": "人は自由に話し、行動すればよいのではありませんか？",
+      "audio_file": "audio_018.wav",
+      "duration": 4.074666666666666
+    },
+    {
+      "id": 19,
+      "sentence": "孔子はゆっくりとお茶をすすり、静かに答えた。",
+      "audio_file": "audio_019.wav",
+      "duration": 3.477333333333333
+    },
+    {
+      "id": 20,
+      "sentence": "「子路よ、お前は今、街を歩いていて、誰かが大声で罵り合っていたとする。」",
+      "audio_file": "audio_020.wav",
+      "duration": 6.197333333333333
+    },
+    {
+      "id": 21,
+      "sentence": "その様子をじっと見るのは、気持ちが良いものか？",
+      "audio_file": "audio_021.wav",
+      "duration": 3.3813333333333335
+    },
+    {
+      "id": 22,
+      "sentence": "子路は少し考え、「いや、見ていてあまり気分の良いものでは",
+      "audio_file": "audio_022.wav",
+      "duration": 5.013333333333334
+    },
+    {
+      "id": 23,
+      "sentence": "ありませんね」と答えた。",
+      "audio_file": "audio_023.wav",
+      "duration": 1.9733333333333334
+    },
+    {
+      "id": 24,
+      "sentence": "「では、もし誰かが陰で他人の悪口を言っていたら、それを聞いてどう思う？」",
+      "audio_file": "audio_024.wav",
+      "duration": 5.429333333333333
+    },
+    {
+      "id": 25,
+      "sentence": "「うーん、気分が悪くなりますね。」",
+      "audio_file": "audio_025.wav",
+      "duration": 2.517333333333333
+    },
+    {
+      "id": 26,
+      "sentence": "聞かなくて済むなら、聞きたくありません。",
+      "audio_file": "audio_026.wav",
+      "duration": 2.6773333333333333
+    },
+    {
+      "id": 27,
+      "sentence": "孔子は微笑み、さらに尋ねた。",
+      "audio_file": "audio_027.wav",
+      "duration": 2.570666666666667
+    },
+    {
+      "id": 28,
+      "sentence": "「では、誰かがいい加減な言葉を発して、人を騙そうとしていたら？」",
+      "audio_file": "audio_028.wav",
+      "duration": 5.013333333333334
+    },
+    {
+      "id": 29,
+      "sentence": "「それは……許されません。」",
+      "audio_file": "audio_029.wav",
+      "duration": 1.984
+    },
+    {
+      "id": 30,
+      "sentence": "子路はきっぱりと答えた。",
+      "audio_file": "audio_030.wav",
+      "duration": 1.728
+    }
+  ]
+}

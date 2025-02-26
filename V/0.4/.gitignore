@@ -1,0 +1,11 @@
+# 环境变量文件
+.env
+
+# Python
+__pycache__/
+*.py[cod]
+*$py.class
+
+# 输入输出目录
+input_texts/
+output_texts/ 
