@@ -1,5 +1,8 @@
 # 故事视频生成器 | Story Video Generator | ストーリービデオジェネレーター
 
+[中文](#中文说明) | [English](#english-description) | [日本語](#日本語説明)
+
+<a id="中文说明"></a>
 ## 中文说明
 
 这是一个自动将文本故事转换为视频的工具，包含语音合成、场景分析、图像生成和视频制作功能。
@@ -43,6 +46,34 @@
 5. 字幕生成：创建与语音同步的字幕文件
 6. 视频制作：将图像、音频和字幕合成为完整视频
 
+### 文件结构
+
+- `full_process.py` - 主程序，协调整个处理流程
+- `text_processor.py` - 文本处理模块
+- `voice_generator.py` - 语音生成模块
+- `story_analyzer.py` - 故事分析模块
+- `image_generator.py` - 图像生成模块
+- `video_maker.py` - 视频制作模块
+- `generate_srt.py` - 字幕生成模块
+- `add_subtitles.py` - 字幕添加模块
+
+### 自定义设置
+
+- 在 `Base.json` 中可以调整图像生成参数
+- 在 `voice_generator.py` 中可以更改语音角色
+- 在 `story_analyzer.py` 中可以调整场景分析参数
+
+### 注意事项
+
+- 确保 VOICEVOX 和 ComfyUI 服务已启动
+- 图像生成可能需要较长时间
+- 视频处理需要足够的磁盘空间
+
+[返回顶部](#故事视频生成器--story-video-generator--ストーリービデオジェネレーター)
+
+---
+
+<a id="english-description"></a>
 ## English Description
 
 This is a tool that automatically converts text stories into videos, featuring voice synthesis, scene analysis, image generation, and video production.
@@ -86,6 +117,34 @@ This is a tool that automatically converts text stories into videos, featuring v
 5. Subtitle Generation: Create subtitles synchronized with the voice
 6. Video Production: Combine images, audio, and subtitles into a complete video
 
+### File Structure
+
+- `full_process.py` - Main program that coordinates the entire process
+- `text_processor.py` - Text processing module
+- `voice_generator.py` - Voice generation module
+- `story_analyzer.py` - Story analysis module
+- `image_generator.py` - Image generation module
+- `video_maker.py` - Video production module
+- `generate_srt.py` - Subtitle generation module
+- `add_subtitles.py` - Subtitle addition module
+
+### Custom Settings
+
+- Adjust image generation parameters in `Base.json`
+- Change voice characters in `voice_generator.py`
+- Adjust scene analysis parameters in `story_analyzer.py`
+
+### Notes
+
+- Ensure VOICEVOX and ComfyUI services are running
+- Image generation may take a long time
+- Video processing requires sufficient disk space
+
+[Back to Top](#故事视频生成器--story-video-generator--ストーリービデオジェネレーター)
+
+---
+
+<a id="日本語説明"></a>
 ## 日本語説明
 
 これはテキストストーリーを自動的に動画に変換するツールで、音声合成、シーン分析、画像生成、動画制作の機能を備えています。
@@ -129,25 +188,27 @@ This is a tool that automatically converts text stories into videos, featuring v
 5. 字幕生成：音声と同期した字幕を作成
 6. 動画制作：画像、音声、字幕を組み合わせて完全な動画を作成
 
-## 文件结构
+### ファイル構造
 
-- `full_process.py` - 主程序，协调整个处理流程
-- `text_processor.py` - 文本处理模块
-- `voice_generator.py` - 语音生成模块
-- `story_analyzer.py` - 故事分析模块
-- `image_generator.py` - 图像生成模块
-- `video_maker.py` - 视频制作模块
-- `generate_srt.py` - 字幕生成模块
-- `add_subtitles.py` - 字幕添加模块
+- `full_process.py` - 全体のプロセスを調整するメインプログラム
+- `text_processor.py` - テキスト処理モジュール
+- `voice_generator.py` - 音声生成モジュール
+- `story_analyzer.py` - ストーリー分析モジュール
+- `image_generator.py` - 画像生成モジュール
+- `video_maker.py` - 動画制作モジュール
+- `generate_srt.py` - 字幕生成モジュール
+- `add_subtitles.py` - 字幕追加モジュール
 
-## 自定义设置
+### カスタム設定
 
-- 在 `Base.json` 中可以调整图像生成参数
-- 在 `voice_generator.py` 中可以更改语音角色
-- 在 `story_analyzer.py` 中可以调整场景分析参数
+- `Base.json` で画像生成パラメータを調整
+- `voice_generator.py` で音声キャラクターを変更
+- `story_analyzer.py` でシーン分析パラメータを調整
 
-## 注意事项
+### 注意事項
 
-- 确保 VOICEVOX 和 ComfyUI 服务已启动
-- 图像生成可能需要较长时间
-- 视频处理需要足够的磁盘空间 
+- VOICEVOXとComfyUIサービスが起動していることを確認
+- 画像生成には時間がかかる場合があります
+- 動画処理には十分なディスク容量が必要です
+
+[トップに戻る](#故事视频生成器--story-video-generator--ストーリービデオジェネレーター) 
