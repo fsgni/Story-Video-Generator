@@ -211,4 +211,34 @@ This is a tool that automatically converts text stories into videos, featuring v
 - 画像生成には時間がかかる場合があります
 - 動画処理には十分なディスク容量が必要です
 
-[トップに戻る](#故事视频生成器--story-video-generator--ストーリービデオジェネレーター) 
+[トップに戻る](#故事视频生成器--story-video-generator--ストーリービデオジェネレーター)
+
+## 更新说明
+
+现在支持两种视频制作方式：
+1. 基于 FFmpeg 的原始方法
+2. 基于 MoviePy 的新方法（默认），提供更平滑的镜头效果
+
+## 安装依赖
+
+```
+pip install openai numpy pillow pydub moviepy
+```
+
+## 使用方法
+
+1. 将故事文本放入 `story.txt` 文件
+2. 运行 `python full_process.py`
+3. 如果想使用原始的 FFmpeg 方法，运行 `python full_process.py --use-ffmpeg`
+
+## 视频效果
+
+MoviePy 版本提供以下电影般的镜头效果：
+- 从左到右平移
+- 从右到左平移
+- 从上到下平移
+- 从下到上平移
+- 缓慢放大
+- 缓慢缩小
+
+这些效果会随机应用到不同的场景，创造出更加生动的视觉体验。 

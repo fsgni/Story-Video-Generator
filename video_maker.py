@@ -3,6 +3,7 @@ from pathlib import Path
 import subprocess
 import os
 from shutil import copy2
+import random
 
 def create_audio_video(audio_info_file: str, output_file: str, resolution=(1920, 1080)):
     """使用 FFmpeg 创建带音频的视频（不含字幕）"""
@@ -190,48 +191,57 @@ def create_base_video(audio_info_file: str, output_file: str, resolution=(1920, 
     # 清理临时文件
     merged_audio.unlink()
 
-def create_video_with_scenes(key_scenes_file: str, base_video: str, output_file: str, batch_size=10):
-    """分批处理场景生成视频"""
+def create_video_with_scenes(key_scenes_file: str, input_video: str, output_file: str, batch_size: int = 5):
+    """创建带有场景图片的视频"""
     # 读取场景信息
-    with open(key_scenes_file, "r", encoding="utf-8") as f:
+    with open(key_scenes_file, 'r', encoding='utf-8') as f:
         scenes = json.load(f)
-    
-    # 确保输出目录存在
-    output_path = Path(output_file).parent
-    output_path.mkdir(parents=True, exist_ok=True)
     
     # 创建临时目录
     temp_dir = Path("temp")
     temp_dir.mkdir(exist_ok=True)
     
-    # 复制基础视频作为第一个临时文件
+    # 复制输入视频作为第一个临时文件
     current_video = temp_dir / "temp_0.mp4"
-    copy2(base_video, current_video)
+    copy2(input_video, current_video)
     
     # 分批处理场景
     for batch_idx in range(0, len(scenes), batch_size):
         batch_scenes = scenes[batch_idx:batch_idx + batch_size]
         
-        # 创建 ffmpeg 滤镜命令
+        # 构建滤镜复杂度
         filter_complex = []
-        filter_complex.append("[0:v]format=yuva420p[base]")
         
-        # 为每个场景添加图片叠加
+        # 添加基础视频
+        filter_complex.append("[0:v]setpts=PTS-STARTPTS[base]")
+        
+        # 为每个场景添加图片和动画效果
         for i, scene in enumerate(batch_scenes):
-            # 添加图片输入流
-            filter_complex.append(f"[{i+1}:v]format=rgba,scale=1920:1080[img{i}]")
+            # 获取场景时间信息
+            start_time = scene['start_time']
+            end_time = scene['end_time']
+            duration = end_time - start_time
             
-            # 在正确的时间点叠加图片
-            start_time = scene["start_time"]
-            end_time = scene["end_time"]
+            # 随机选择效果类型: 0=左右轻微摇摆, 1=上下轻微摇摆
+            effect_type = random.randint(0, 1)
+            
+            # 添加图片输入标签
+            filter_complex.append(f"[{i+1}:v]setpts=PTS-STARTPTS,scale=1920:1080,format=rgba[img{i}]")
+            
+            # 使用非常简单的表达式，只有极小的移动
+            move_distance = 5  # 非常小的移动距离
+            
+            # 添加叠加效果 - 使用简单的正弦函数
             if i == 0:
-                filter_complex.append(
-                    f"[base][img{i}]overlay=0:0:enable='between(t,{start_time},{end_time})'[v{i}]"
-                )
+                if effect_type == 0:  # 左右轻微摇摆
+                    filter_complex.append(f"[base][img{i}]overlay=x='(W-w)/2+{move_distance}*sin(2*PI*(t-{start_time})/4)':y=(H-h)/2:enable='between(t,{start_time},{end_time})'[v{i}]")
+                else:  # 上下轻微摇摆
+                    filter_complex.append(f"[base][img{i}]overlay=x=(W-w)/2:y='(H-h)/2+{move_distance}*sin(2*PI*(t-{start_time})/4)':enable='between(t,{start_time},{end_time})'[v{i}]")
             else:
-                filter_complex.append(
-                    f"[v{i-1}][img{i}]overlay=0:0:enable='between(t,{start_time},{end_time})'[v{i}]"
-                )
+                if effect_type == 0:  # 左右轻微摇摆
+                    filter_complex.append(f"[v{i-1}][img{i}]overlay=x='(W-w)/2+{move_distance}*sin(2*PI*(t-{start_time})/4)':y=(H-h)/2:enable='between(t,{start_time},{end_time})'[v{i}]")
+                else:  # 上下轻微摇摆
+                    filter_complex.append(f"[v{i-1}][img{i}]overlay=x=(W-w)/2:y='(H-h)/2+{move_distance}*sin(2*PI*(t-{start_time})/4)':enable='between(t,{start_time},{end_time})'[v{i}]")
         
         # 构建 ffmpeg 命令
         next_video = temp_dir / f"temp_{batch_idx + batch_size}.mp4"
@@ -250,6 +260,8 @@ def create_video_with_scenes(key_scenes_file: str, base_video: str, output_file:
             "-map", f"[v{len(batch_scenes)-1}]",  # 使用最后一个视频流
             "-map", "0:a",  # 使用原始音频
             "-c:v", "libx264",
+            "-preset", "slow",  # 使用较慢的预设以提高质量
+            "-crf", "18",      # 较低的CRF值意味着更高的质量
             "-c:a", "copy",
             str(next_video)
         ])
@@ -284,7 +296,7 @@ if __name__ == "__main__":
         "output/key_scenes.json",
         base_video,
         final_video,
-        batch_size=10  # 每次处理10个场景
+        batch_size=5  # 每次处理5个场景
     )
     
     print("\n处理完成！") 

@@ -4,10 +4,12 @@ from text_processor import TextProcessor
 from voice_generator import VoiceVoxGenerator
 from story_analyzer import StoryAnalyzer
 from image_generator import ComfyUIGenerator
-from video_maker import create_base_video, create_video_with_scenes
+from video_maker import create_base_video
+from video_maker_moviepy import create_video_with_scenes_moviepy
 from generate_srt import generate_srt
 from add_subtitles import add_subtitles
 import json
+import subprocess
 
 def clean_output_directories():
     """清理输出目录中的旧文件"""
@@ -114,9 +116,9 @@ def process_story(input_file: str):
     print("\n6. 创建视频...")
     base_video = "output/base_video.mp4"
     create_base_video(audio_info_file, base_video)
-    
-    final_video = "output/final_video.mp4"
-    create_video_with_scenes("output/key_scenes.json", base_video, final_video)
+
+    final_video = "output/final_video_moviepy.mp4"
+    create_video_with_scenes_moviepy("output/key_scenes.json", base_video, final_video)
     print("视频创建完成")
     
     # 7. 添加字幕

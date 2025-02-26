@@ -17,7 +17,7 @@ class ComfyUIGenerator:
         
         # 加载工作流配置
         try:
-            with open("Base.json", "r", encoding="utf-8") as f:
+            with open("workflows/waterink.json", "r", encoding="utf-8") as f:
                 self.workflow = json.load(f)
                 print("成功加载工作流配置")
         except Exception as e:
