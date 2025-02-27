@@ -1,5 +1,6 @@
 # 故事视频生成器 | Story Video Generator | ストーリービデオジェネレーター
 
+**当前版本：v1.0.2**
 [中文](#中文说明) | [English](#english-description) | [日本語](#日本語説明)
 
 <a id="中文说明"></a>
