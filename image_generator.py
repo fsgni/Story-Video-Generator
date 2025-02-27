@@ -115,7 +115,7 @@ class ComfyUIGenerator:
                 
                 # 设置随机种子和更新提示词
                 seed = random.randint(1, 9999999999)
-                positive_prompt = scene["prompt"] + ", masterpiece, best quality, photorealistic, cinematic lighting, movie style, detailed, 8k uhd"
+                positive_prompt = scene["prompt"] + ", masterpiece, best quality"
                 negative_prompt = "text, watermark, bad quality, worst quality, low quality, illustration, 3d render, cartoon, anime, manga"
                 
                 # 更新工作流配置

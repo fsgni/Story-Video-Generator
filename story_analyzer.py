@@ -167,7 +167,7 @@ class StoryAnalyzer:
             )
             
             scene = response.choices[0].message.content.strip()
-            return f"{scene}, masterpiece, best quality, photorealistic, cinematic lighting, detailed, 8k uhd"
+            return f"{scene}, masterpiece, best quality,"
         except Exception as e:
             print(f"生成场景描述时出错: {e}")
             return "error generating scene description"
