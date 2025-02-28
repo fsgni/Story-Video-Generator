@@ -30,143 +30,124 @@ def create_video_with_scenes_moviepy(key_scenes_file: str, input_video: str, out
             # 加载图片
             img_path = f"output/images/{scene['image_file']}"
             print(f"处理图片: {img_path}")
-            img_clip = ImageClip(img_path).set_duration(duration)
             
-            # 随机选择电影效果类型
-            # 0=从左到右平移, 1=从右到左平移, 2=从上到下平移, 3=从下到上平移
-            # 4=缓慢放大, 5=缓慢缩小
-            effect_type = random.randint(0, 5)
+            # 随机选择电影效果类型 (简化为只有3种效果)
+            # 0=缓慢平移, 1=缓慢放大, 2=缓慢缩小
+            effect_type = random.randint(0, 2)
+            
+            # 加载图片
+            img_clip = ImageClip(img_path)
             
             # 计算图片和视频的宽高比
             img_aspect = img_clip.w / img_clip.h
             video_aspect = video_width / video_height
             
-            # 设置图片尺寸 - 确保图片完全覆盖视频，并且有额外空间用于移动
-            # 我们将图片尺寸设置为比视频大10%，这样移动时不会露出黑边
-            scale_factor = 1.1  # 比视频大10%
-            
+            # 确保图片覆盖整个视频区域 - 增加到15%的安全边距
             if img_aspect > video_aspect:  # 图片更宽
-                # 宽度按比例缩放，确保高度至少覆盖视频
-                target_height = video_height * scale_factor
-                target_width = target_height * img_aspect
+                # 高度匹配视频，宽度按比例
+                img_height = video_height * 1.15  # 增加15%的高度作为安全边距
+                img_width = img_height * img_aspect
             else:  # 图片更高或相等
-                # 高度按比例缩放，确保宽度至少覆盖视频
-                target_width = video_width * scale_factor
-                target_height = target_width / img_aspect
+                # 宽度匹配视频，高度按比例
+                img_width = video_width * 1.15  # 增加15%的宽度作为安全边距
+                img_height = img_width / img_aspect
             
-            # 为缩放效果准备参数
-            if effect_type == 4 or effect_type == 5:  # 放大或缩小效果
-                # 对于缩放效果，我们需要更大的初始图片尺寸
-                zoom_scale_factor = 1.2  # 比视频大20%
+            # 调整图片大小
+            img_clip = img_clip.resize(width=img_width, height=img_height)
+            
+            # 应用效果
+            if effect_type == 0:  # 缓慢平移
+                # 随机选择平移方向
+                pan_direction = random.randint(0, 3)  # 0=左到右, 1=右到左, 2=上到下, 3=下到上
                 
-                if img_aspect > video_aspect:  # 图片更宽
-                    zoom_height = video_height * zoom_scale_factor
-                    zoom_width = zoom_height * img_aspect
-                else:  # 图片更高或相等
-                    zoom_width = video_width * zoom_scale_factor
-                    zoom_height = zoom_width / img_aspect
-                
-                # 调整图片大小
-                img_clip = img_clip.resize(width=zoom_width, height=zoom_height)
-                
-                # 缩放范围 - 从1.0到1.1或从1.1到1.0
-                min_zoom = 1.0
-                max_zoom = 1.1
-                
-                # 定义缩放函数
-                if effect_type == 4:  # 缓慢放大
-                    def zoom_func(t):
-                        # 使用平滑的缓动函数 - 正弦曲线的前四分之一
-                        progress = np.sin((t / duration) * np.pi/2)
-                        zoom = min_zoom + (max_zoom - min_zoom) * progress
-                        return zoom
-                else:  # 缓慢缩小
-                    def zoom_func(t):
-                        # 使用平滑的缓动函数 - 余弦曲线的后四分之一
-                        progress = np.cos((t / duration) * np.pi/2 + np.pi/2)
-                        zoom = max_zoom - (max_zoom - min_zoom) * progress
-                        return zoom
+                # 计算平移距离 (非常小的移动，只有5%)
+                pan_distance = min(img_width, img_height) * 0.05
                 
                 # 定义位置函数
-                def move_func(t):
-                    # 获取当前缩放比例
-                    current_zoom = zoom_func(t)
+                def pos_func(t):
+                    # 线性移动，确保整个持续时间内都在移动
+                    progress = t / duration
                     
-                    # 计算当前尺寸
-                    current_width = zoom_width * current_zoom
-                    current_height = zoom_height * current_zoom
+                    if pan_direction == 0:  # 从左到右
+                        x = -img_width/2 + video_width/2 - pan_distance/2 + progress * pan_distance
+                        y = -img_height/2 + video_height/2
+                    elif pan_direction == 1:  # 从右到左
+                        x = -img_width/2 + video_width/2 + pan_distance/2 - progress * pan_distance
+                        y = -img_height/2 + video_height/2
+                    elif pan_direction == 2:  # 从上到下
+                        x = -img_width/2 + video_width/2
+                        y = -img_height/2 + video_height/2 - pan_distance/2 + progress * pan_distance
+                    else:  # 从下到上
+                        x = -img_width/2 + video_width/2
+                        y = -img_height/2 + video_height/2 + pan_distance/2 - progress * pan_distance
                     
-                    # 计算位置，保持图片中心对齐视频中心
-                    x = (video_width - current_width) / 2
-                    y = (video_height - current_height) / 2
-                    
-                    return (x, y)
+                    return (int(x), int(y))
                 
-                # 设置缩放动画
-                img_clip = img_clip.resize(lambda t: (zoom_width * zoom_func(t), zoom_height * zoom_func(t)))
+            elif effect_type == 1:  # 缓慢放大
+                # 从小到大缓慢放大 (从100%到105%)
+                start_scale = 1.0   # 修改为从100%开始
+                end_scale = 1.05
+                
+                # 定义缩放函数
+                def zoom_func(t):
+                    # 线性缩放
+                    progress = t / duration
+                    return start_scale + (end_scale - start_scale) * progress
+                
+                # 应用缩放效果
+                img_clip = img_clip.resize(lambda t: (int(img_width * zoom_func(t)), 
+                                                     int(img_height * zoom_func(t))))
+                
+                # 定义位置函数 - 保持居中
+                def pos_func(t):
+                    scale = zoom_func(t)
+                    x = -img_width * scale / 2 + video_width / 2
+                    y = -img_height * scale / 2 + video_height / 2
+                    return (int(x), int(y))
+                
+            else:  # 缓慢缩小
+                # 从大到小缓慢缩小 (从105%到100%)
+                start_scale = 1.05
+                end_scale = 1.0    # 修改为到100%结束
+                
+                # 定义缩放函数
+                def zoom_func(t):
+                    # 线性缩放
+                    progress = t / duration
+                    return start_scale + (end_scale - start_scale) * progress
+                
+                # 应用缩放效果
+                img_clip = img_clip.resize(lambda t: (int(img_width * zoom_func(t)), 
+                                                     int(img_height * zoom_func(t))))
+                
+                # 定义位置函数 - 保持居中
+                def pos_func(t):
+                    scale = zoom_func(t)
+                    x = -img_width * scale / 2 + video_width / 2
+                    y = -img_height * scale / 2 + video_height / 2
+                    return (int(x), int(y))
             
-            else:  # 平移效果
-                # 调整图片大小
-                img_clip = img_clip.resize(width=target_width, height=target_height)
-                
-                # 计算移动范围 - 确保移动时不会露出黑边
-                # 移动范围是图片尺寸与视频尺寸的差值
-                h_move_range = target_width - video_width
-                v_move_range = target_height - video_height
-                
-                # 定义动画函数 - 使用平滑的移动效果
-                if effect_type == 0:  # 从左到右平移
-                    def move_func(t):
-                        # 使用平滑的缓动函数 - 正弦曲线的前四分之一
-                        progress = np.sin((t / duration) * np.pi/2)
-                        # 从左边开始移动到右边，但确保图片始终覆盖整个视频
-                        x = -progress * h_move_range
-                        # 垂直居中
-                        y = -(target_height - video_height) / 2
-                        return (x, y)
-                    
-                elif effect_type == 1:  # 从右到左平移
-                    def move_func(t):
-                        # 使用平滑的缓动函数 - 正弦曲线的前四分之一
-                        progress = np.sin((t / duration) * np.pi/2)
-                        # 从右边开始移动到左边
-                        x = -(1 - progress) * h_move_range
-                        # 垂直居中
-                        y = -(target_height - video_height) / 2
-                        return (x, y)
-                    
-                elif effect_type == 2:  # 从上到下平移
-                    def move_func(t):
-                        # 使用平滑的缓动函数 - 正弦曲线的前四分之一
-                        progress = np.sin((t / duration) * np.pi/2)
-                        # 水平居中
-                        x = -(target_width - video_width) / 2
-                        # 从上边开始移动到下边
-                        y = -progress * v_move_range
-                        return (x, y)
-                    
-                else:  # 从下到上平移
-                    def move_func(t):
-                        # 使用平滑的缓动函数 - 正弦曲线的前四分之一
-                        progress = np.sin((t / duration) * np.pi/2)
-                        # 水平居中
-                        x = -(target_width - video_width) / 2
-                        # 从下边开始移动到上边
-                        y = -(1 - progress) * v_move_range
-                        return (x, y)
-                
-                # 设置位置
-                img_clip = img_clip.set_position(move_func)
+            # 设置持续时间和开始时间
+            img_clip = img_clip.set_duration(duration).set_start(start_time)
             
-            # 设置动画和时间
-            img_clip = img_clip.set_position(move_func).set_start(start_time)
+            # 设置位置
+            img_clip = img_clip.set_position(pos_func)
+            
+            # 添加淡入淡出效果
+            # 计算淡入淡出时间 - 较短场景使用较短的淡入淡出时间
+            fade_duration = min(0.5, duration / 10)  # 最长0.5秒，或者场景时长的1/10
+            
+            # 应用淡入淡出效果
+            img_clip = img_clip.fadein(fade_duration).fadeout(fade_duration)
             
             # 添加到剪辑列表
             clips.append(img_clip)
-            print(f"已添加图片: {scene['image_file']} 效果类型: {effect_type}")
+            print(f"已添加图片: {scene['image_file']} 效果类型: {effect_type} 淡入淡出: {fade_duration:.2f}秒")
             
         except Exception as e:
             print(f"处理图片 {scene.get('image_file', '未知')} 时出错: {e}")
+            import traceback
+            traceback.print_exc()
     
     # 合成最终视频
     print(f"合成视频，共 {len(clips)} 个剪辑...")
@@ -180,7 +161,7 @@ def create_video_with_scenes_moviepy(key_scenes_file: str, input_video: str, out
         audio_codec='aac',
         temp_audiofile='temp-audio.m4a',
         remove_temp=True,
-        fps=24,
+        fps=30,  # 使用较高帧率
         preset='slow',
         bitrate='5000k'
     )
@@ -188,7 +169,10 @@ def create_video_with_scenes_moviepy(key_scenes_file: str, input_video: str, out
     # 关闭所有剪辑
     base_video.close()
     for clip in clips[1:]:
-        clip.close()
+        try:
+            clip.close()
+        except:
+            pass
     
     print("视频创建完成！")
 
