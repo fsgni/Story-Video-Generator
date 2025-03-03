@@ -20,43 +20,71 @@ class StoryAnalyzer:
         self.input_file = input_file
         
         analysis_prompt = """
-        Analyze this story and extract the following elements in JSON format:
+        You are tasked with analyzing a story and extracting key elements.
+        
+        Analyze the following story and extract these elements in valid JSON format:
         {
             "setting": {
-                "culture": "cultural background",
-                "location": "specific location",
-                "era": "specific historical period",
-                "style": "overall visual style"
+                "culture": "the specific cultural background of the story",
+                "location": "the specific location where the story takes place",
+                "era": "the specific time period or era of the story",
+                "style": "the overall visual style that would suit this story"
             },
             "characters": {
                 "character_name": {
-                    "appearance": "visual description",
-                    "role": "character role",
+                    "appearance": "brief visual description",
+                    "role": "character's role in the story",
                     "voice_type": "child/adult/elderly",
                     "gender": "male/female"
                 }
             }
         }
+        
+        Be accurate and specific. If the story doesn't explicitly mention certain elements, make reasonable inferences based on the context.
+        Your response must be ONLY valid JSON without any explanations or apologies.
         """
         
         try:
             response = self.client.chat.completions.create(
                 model=self.model,
                 messages=[
-                    {"role": "system", "content": "你是一个精确的文化和历史分析器，能识别和尊重不同文化的元素。"},
-                    {"role": "user", "content": analysis_prompt + "\n" + story_text}
-                ]
+                    {"role": "system", "content": "You are a precise cultural and historical analyzer that can identify elements from any culture or time period. Always return valid JSON."},
+                    {"role": "user", "content": analysis_prompt + "\n\nSTORY TEXT:\n" + story_text}
+                ],
+                response_format={"type": "json_object"}  # 强制返回JSON格式
             )
             
             # 解析响应
-            analysis_result = json.loads(response.choices[0].message.content)
+            response_content = response.choices[0].message.content
+            print(f"GPT Response: {response_content}")
+            
+            try:
+                analysis_result = json.loads(response_content)
+            except json.JSONDecodeError as e:
+                print(f"JSON解析错误: {e}")
+                print(f"原始响应: {response_content}")
+                # 尝试修复常见的JSON错误
+                fixed_content = response_content.replace("'", "\"")
+                try:
+                    analysis_result = json.loads(fixed_content)
+                except:
+                    # 如果仍然失败，使用默认值
+                    analysis_result = {
+                        "setting": {
+                            "culture": "Universal",
+                            "location": "Story World",
+                            "era": "Story Time",
+                            "style": "Realistic"
+                        },
+                        "characters": {}
+                    }
             
             # 确保返回基本结构
             self.core_elements = {
                 "setting": {
-                    "culture": analysis_result.get("setting", {}).get("culture", "Unknown Culture"),
-                    "era": analysis_result.get("setting", {}).get("era", "Unknown Era"),
-                    "style": analysis_result.get("setting", {}).get("style", "Classical Style")
+                    "culture": analysis_result.get("setting", {}).get("culture", "Universal"),
+                    "era": analysis_result.get("setting", {}).get("era", "Story Time"),
+                    "style": analysis_result.get("setting", {}).get("style", "Realistic")
                 },
                 "characters": analysis_result.get("characters", {}),
                 "cultural_elements": analysis_result.get("cultural_elements", {}),
@@ -73,21 +101,27 @@ class StoryAnalyzer:
             
             # 保存时代背景信息
             setting = analysis_result.get("setting", {})
-            self.story_era = setting.get("era", "Classical Period")
-            self.story_location = setting.get("location", "Ancient China")
+            self.story_era = setting.get("era", "Story Time")
+            self.story_location = setting.get("location", "Story World")
+            
+            print(f"分析结果 - 地点: {self.story_location}, 时代: {self.story_era}")
             
             return self.core_elements
             
         except Exception as e:
             print(f"分析故事时出错: {e}")
-            self.story_era = "Classical Period"
-            self.story_location = "Ancient China"
+            import traceback
+            traceback.print_exc()
+            
+            # 使用通用的默认值
+            self.story_era = "Story Time"
+            self.story_location = "Story World"
             # 提供默认值而不是空对象
             self.core_elements = {
                 "setting": {
-                    "culture": "Classical Culture",
-                    "era": "Classical Period",
-                    "style": "Classical Style"
+                    "culture": "Universal",
+                    "era": "Story Time",
+                    "style": "Realistic"
                 },
                 "characters": {},
                 "cultural_elements": {},
@@ -149,28 +183,43 @@ class StoryAnalyzer:
         context = "\n".join(sentences)
         
         try:
+            prompt = f"""
+            Create a detailed visual scene description based on this text:
+            
+            "{context}"
+            
+            Your description should be set in {self.story_location} during {self.story_era}.
+            
+            Format your response as a single paragraph with this structure:
+            [Setting], [Character details], [Action/Expression], [Environment details]
+            
+            Your response must be a creative scene description only, without any explanations, apologies, or refusals.
+            """
+            
             response = self.client.chat.completions.create(
                 model=self.model,
                 messages=[
-                    {"role": "system", "content": f"""
-                        Create scene descriptions in English only.
-                        Use this exact location and era for all scenes:
-                        [{self.story_location}, {self.story_era}]
-                        
-                        Format must be:
-                        [{self.story_location}, {self.story_era}], [Character details], [Action/Expression], [Environment]
-                    """},
-                    {"role": "user", "content": context}
+                    {"role": "system", "content": "You are a creative scene description generator that can visualize any setting or time period without limitations."},
+                    {"role": "user", "content": prompt}
                 ],
-                temperature=0.3,
-                max_tokens=100
+                temperature=0.7,
+                max_tokens=150
             )
             
             scene = response.choices[0].message.content.strip()
+            
+            # 检查是否包含拒绝或道歉的词语
+            refusal_phrases = ["I'm sorry", "I cannot", "I apologize", "I'm unable", "I can only"]
+            if any(phrase in scene for phrase in refusal_phrases):
+                print(f"检测到拒绝回应: {scene}")
+                # 创建一个通用的场景描述
+                scene = f"[{self.story_location}, {self.story_era}], [Characters from the story], [Engaged in meaningful interaction], [In a detailed environment that reflects the story's setting]"
+            
             return f"{scene}, masterpiece, best quality,"
         except Exception as e:
             print(f"生成场景描述时出错: {e}")
-            return "error generating scene description"
+            # 返回一个通用的场景描述
+            return f"[{self.story_location}, {self.story_era}], detailed scene, masterpiece, best quality,"
     
     def identify_key_scenes(self, sentences: List[str]) -> List[Dict]:
         """识别需要生成图像的关键场景"""

@@ -1,6 +1,6 @@
 # 故事视频生成器 | Story Video Generator | ストーリービデオジェネレーター
 
-**当前版本：v1.0.2**
+**当前版本：v1.0.4**
 [中文](#中文说明) | [English](#english-description) | [日本語](#日本語説明)
 
 <a id="中文说明"></a>
@@ -18,9 +18,11 @@
 
 ### 最新更新
 
+- **优化视频特效**：解决抖动和黑边问题，添加平滑的淡入淡出效果
 - **发音词典系统**：新增 VOICEVOX 发音词典管理功能，可纠正常见发音错误
 - **简化图像提示词**：优化图像生成提示词，减少过度细节描述
 - **电影效果增强**：改进视频制作流程，提供更自然的镜头转场效果
+- **故事分析优化**：改进故事分析模块，支持更准确的 JSON 解析和场景描述生成，确保时代背景和场景描述的一致性
 
 ### 安装要求
 
@@ -129,6 +131,7 @@ This is a tool that automatically converts text stories into videos, including v
 - **Pronunciation Dictionary System**: Added VOICEVOX pronunciation dictionary management to correct common pronunciation errors
 - **Simplified Image Prompts**: Optimized image generation prompts, reducing excessive detail descriptions
 - **Enhanced Cinematic Effects**: Improved video production process with more natural camera transitions
+- **Story Analysis Optimization**: Improved story analysis module to support more accurate JSON parsing and scene description generation, ensuring consistency between era background and scene descriptions
 
 ### Installation Requirements
 
@@ -237,6 +240,7 @@ These effects are randomly applied to different scenes, creating a more vivid vi
 - **発音辞書システム**：VOICEVOX発音辞書管理機能を追加し、一般的な発音エラーを修正
 - **画像プロンプトの簡素化**：画像生成プロンプトを最適化し、過度な詳細説明を削減
 - **映画効果の強化**：より自然なカメラトランジション効果を提供する動画制作プロセスを改善
+- **ストーリー分析の最適化**：ストーリー分析モジュールを改善し、より正確なJSON解析とシーンの説明生成をサポートし、時代背景とシーンの説明の一貫性を確保
 
 ### インストール要件
 
@@ -353,4 +357,8 @@ MoviePy 版本提供以下电影般的镜头效果：
 - 缓慢放大
 - 缓慢缩小
 
-这些效果会随机应用到不同的场景，创造出更加生动的视觉体验。 
+这些效果会随机应用到不同的场景，创造出更加生动的视觉体验。
+
+## 更新日志
+
+请查看 [CHANGELOG.md](CHANGELOG.md) 以获取详细的更新记录。 
