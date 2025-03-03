@@ -23,6 +23,7 @@
 - **简化图像提示词**：优化图像生成提示词，减少过度细节描述
 - **电影效果增强**：改进视频制作流程，提供更自然的镜头转场效果
 - **故事分析优化**：改进故事分析模块，支持更准确的 JSON 解析和场景描述生成，确保时代背景和场景描述的一致性
+- **WebUI 界面**：新增基于 Gradio 的 Web 用户界面，提供更直观的操作体验和实时预览功能
 
 ### 安装要求
 
@@ -45,6 +46,29 @@
    python full_process.py
    ```
 5. 最终视频将保存在 `output` 目录中
+
+### WebUI 使用方法
+
+为了提供更友好的用户体验，我们新增了基于 Gradio 的 Web 界面：
+
+1. 安装额外依赖：
+   ```
+   pip install gradio
+   ```
+
+2. 启动 WebUI：
+   ```
+   python webui.py
+   ```
+
+3. 在浏览器中访问 `http://127.0.0.1:7860` 即可使用
+
+WebUI 提供以下功能：
+- 文本输入区：直接输入或上传故事文本
+- 参数设置：调整视频生成参数
+- 实时预览：查看生成的图像和场景描述
+- 进度显示：实时显示处理进度
+- 结果下载：直接下载生成的视频和音频文件
 
 ### 发音词典管理
 
@@ -101,6 +125,7 @@ MoviePy 版本提供以下电影般的镜头效果：
 - `add_subtitles.py` - 字幕添加模块
 - `pronunciation_dictionary.py` - 发音词典管理模块
 - `manage_dictionary.py` - 词典管理工具
+- `webui.py` - Web 用户界面模块，基于 Gradio 框架
 
 ### 注意事项
 
@@ -132,6 +157,7 @@ This is a tool that automatically converts text stories into videos, including v
 - **Simplified Image Prompts**: Optimized image generation prompts, reducing excessive detail descriptions
 - **Enhanced Cinematic Effects**: Improved video production process with more natural camera transitions
 - **Story Analysis Optimization**: Improved story analysis module to support more accurate JSON parsing and scene description generation, ensuring consistency between era background and scene descriptions
+- **WebUI Interface**: Added a new Web UI based on Gradio for a more intuitive operation experience and real-time preview functionality
 
 ### Installation Requirements
 
@@ -154,6 +180,29 @@ This is a tool that automatically converts text stories into videos, including v
    python full_process.py
    ```
 5. The final video will be saved in the `output` directory
+
+### WebUI Usage
+
+To provide a better user experience, we've added a new Web UI based on Gradio:
+
+1. Install additional dependencies:
+   ```
+   pip install gradio
+   ```
+
+2. Start WebUI:
+   ```
+   python webui.py
+   ```
+
+3. Access the Web UI in your browser by visiting `http://127.0.0.1:7860`
+
+WebUI provides the following features:
+- Text Input Area: Directly input or upload story text
+- Parameter Settings: Adjust video generation parameters
+- Real-time Preview: View generated images and scene descriptions
+- Progress Display: Display real-time processing progress
+- Result Download: Directly download generated video and audio files
 
 ### Pronunciation Dictionary Management
 
@@ -210,6 +259,7 @@ These effects are randomly applied to different scenes, creating a more vivid vi
 - `add_subtitles.py` - Subtitle addition module
 - `pronunciation_dictionary.py` - Pronunciation dictionary management module
 - `manage_dictionary.py` - Dictionary management tool
+- `webui.py` - Web UI module, based on Gradio framework
 
 ### Notes
 
@@ -241,6 +291,7 @@ These effects are randomly applied to different scenes, creating a more vivid vi
 - **画像プロンプトの簡素化**：画像生成プロンプトを最適化し、過度な詳細説明を削減
 - **映画効果の強化**：より自然なカメラトランジション効果を提供する動画制作プロセスを改善
 - **ストーリー分析の最適化**：ストーリー分析モジュールを改善し、より正確なJSON解析とシーンの説明生成をサポートし、時代背景とシーンの説明の一貫性を確保
+- **WebUI インタフェース**：新しいWeb UIを追加し、より直感的な操作体験とリアルタイムプレビュー機能を提供
 
 ### インストール要件
 
@@ -263,6 +314,29 @@ These effects are randomly applied to different scenes, creating a more vivid vi
    python full_process.py
    ```
 5. 最終動画は`output`ディレクトリに保存されます
+
+### WebUI 使用方法
+
+よりユーザフレンドリーな体験を提供するために、新しいWeb UIを追加しました：
+
+1. 追加の依存関係をインストール：
+   ```
+   pip install gradio
+   ```
+
+2. Web UIを起動：
+   ```
+   python webui.py
+   ```
+
+3. ブラウザで`http://127.0.0.1:7860`にアクセスして使用
+
+Web UIは以下の機能を提供します：
+- テキスト入力領域：テキストを直接入力するかアップロード
+- パラメータ設定：動画生成パラメータを調整
+- リアルタイムプレビュー：生成された画像とシーンの説明を表示
+- 進行表示：処理の進行をリアルタイムで表示
+- 結果ダウンロード：生成された動画と音声ファイルを直接ダウンロード
 
 ### 発音辞書管理
 
@@ -319,6 +393,7 @@ MoviePyバージョンは以下の映画のようなカメラ効果を提供し�
 - `add_subtitles.py` - 字幕追加モジュール
 - `pronunciation_dictionary.py` - 発音辞書管理モジュール
 - `manage_dictionary.py` - 辞書管理ツール
+- `webui.py` - Web UI module, based on Gradio framework
 
 ### 注意事項
 
@@ -329,13 +404,13 @@ MoviePyバージョンは以下の映画のようなカメラ効果を提供し�
 
 [トップに戻る](#故事视频生成器--story-video-generator--ストーリービデオジェネレーター)
 
-## 更新说明
+## 更新説明
 
-现在支持两种视频制作方式：
-1. 基于 FFmpeg 的原始方法
-2. 基于 MoviePy 的新方法（默认），提供更平滑的镜头效果
+現在は2つの動画制作方法をサポートしています：
+1. 基礎となるFFmpegの方法
+2. 新しい方法（デフォルト）に基づくMoviePy、よりスムーズなカメラ効果を提供
 
-## 安装依赖
+## インストール依存
 
 ```
 pip install openai numpy pillow pydub moviepy
@@ -343,22 +418,22 @@ pip install openai numpy pillow pydub moviepy
 
 ## 使用方法
 
-1. 将故事文本放入 `story.txt` 文件
-2. 运行 `python full_process.py`
-3. 如果想使用原始的 FFmpeg 方法，运行 `python full_process.py --use-ffmpeg`
+1. ストーリーテキストを`story.txt`ファイルに配置
+2. `python full_process.py`を実行
+3. 基礎となるFFmpegの方法を使用する場合は、`python full_process.py --use-ffmpeg`を実行
 
-## 视频效果
+## 動画効果
 
-MoviePy 版本提供以下电影般的镜头效果：
-- 从左到右平移
-- 从右到左平移
-- 从上到下平移
-- 从下到上平移
-- 缓慢放大
-- 缓慢缩小
+MoviePyバージョンは以下の映画のようなカメラ効果を提供します：
+- 左から右へのパン
+- 右から左へのパン
+- 上から下へのパン
+- 下から上へのパン
+- ゆっくりズームイン
+- ゆっくりズームアウト
 
-这些效果会随机应用到不同的场景，创造出更加生动的视觉体验。
+これらの効果は異なるシーンにランダムに適用され、より生き生きとした視覚体験を作り出します。
 
-## 更新日志
+## 更新日誌
 
-请查看 [CHANGELOG.md](CHANGELOG.md) 以获取详细的更新记录。 
+[CHANGELOG.md](CHANGELOG.md)を確認して詳細な更新履歴を確認してください。 
