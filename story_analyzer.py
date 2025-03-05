@@ -4,6 +4,7 @@ from dotenv import load_dotenv
 import os
 import json
 from pathlib import Path
+import re
 
 class StoryAnalyzer:
     def __init__(self):
@@ -291,7 +292,7 @@ class StoryAnalyzer:
         return voice_mapping
     
     def generate_scene_prompt(self, sentences: List[str]) -> str:
-        """生成场景提示词，使用统一的时代背景和风格，确保所有提示词都是英语"""
+        """生成场景提示词，使用统一的时代背景和风格，确保所有提示词都是英语，并且简洁有效"""
         if not self.story_era or not hasattr(self, 'core_elements'):
             print("警告：需要先分析故事背景")
             return "error: story not analyzed"
@@ -348,33 +349,34 @@ class StoryAnalyzer:
                 print(f"翻译JSON解析错误: {e}")
                 # 继续使用原始值
             
-            # 使用翻译后的英语内容生成场景描述
+            # 使用翻译后的英语内容生成场景描述 - 修改为更简洁的提示词
             prompt = f"""
-            Create a detailed visual scene description based on this text:
+            Create a CONCISE visual scene description based on this text:
             
             "{context}"
             
-            Your description should reflect these elements:
+            Your description should reflect:
             - Culture: {culture}
             - Location: {location}
             - Time period: {era}
             - Visual style: {style}
             
-            Format your response as a single paragraph with this structure:
-            [Setting], [Character details], [Action/Expression], [Environment details]
+            Include ONLY the essential visual elements that would appear in an image. 
+            Format as: "[Setting], [Main character action], [Key visual details]"
             
-            Your response must be a creative scene description only, without any explanations, apologies, or refusals.
-            Ensure your response is in English only.
+            BE EXTREMELY CONCISE. Use 30 words maximum. Focus only on visually important elements.
+            No unnecessary adjectives or descriptions. No explanations or non-visual elements.
+            Your response must be in English only.
             """
             
             response = self.client.chat.completions.create(
                 model=self.model,
                 messages=[
-                    {"role": "system", "content": "You are a creative scene description generator that can visualize any setting or time period without limitations. Always respond in English only."},
+                    {"role": "system", "content": "You are a concise scene description generator that focuses only on essential visual elements for image generation. Always respond in English only."},
                     {"role": "user", "content": prompt}
                 ],
                 temperature=0.7,
-                max_tokens=150
+                max_tokens=100
             )
             
             scene = response.choices[0].message.content.strip()
@@ -383,19 +385,25 @@ class StoryAnalyzer:
             refusal_phrases = ["I'm sorry", "I cannot", "I apologize", "I'm unable", "I can only"]
             if any(phrase in scene for phrase in refusal_phrases):
                 print(f"检测到拒绝回应: {scene}")
-                # 创建一个使用分析结果的通用场景描述（确保是英语）
-                scene = f"[{location} during {era}, with {culture} cultural elements], [Characters from the story], [Engaged in meaningful interaction], [In a detailed environment with {style} visual style]"
+                # 创建一个简洁的通用场景描述
+                scene = f"{location} during {era}, {culture} style"
             
-            # 构建最终提示词，明确包含背景信息，确保全部是英语
-            final_prompt = f"{culture}, {location}, {era}, {scene}, {style}, masterpiece, best quality,"
+            # 构建最终提示词，明确包含背景信息，确保全部是英语，但更简洁
+            # 移除可能导致AI模型混淆的不必要词汇
+            scene = re.sub(r'\[|\]|\(|\)', '', scene)  # 移除括号
+            scene = re.sub(r',\s*,', ',', scene)  # 移除连续逗号
+            scene = re.sub(r'\s+', ' ', scene).strip()  # 规范化空格
+            
+            # 生成简洁的最终提示词
+            final_prompt = f"{culture}, {location}, {era}, {scene}, {style} style, high quality"
             return final_prompt
         except Exception as e:
             print(f"生成场景描述时出错: {e}")
-            # 返回一个使用分析结果的通用场景描述
-            return f"{culture}, {location}, {era}, detailed scene with {style} style, masterpiece, best quality,"
+            # 返回一个简洁的通用场景描述
+            return f"{culture}, {location}, {era}, {style} style, high quality"
     
     def generate_segment_specific_prompt(self, sentences: List[str], segment_index: int = None) -> str:
-        """生成基于特定段落分析的场景提示词，为长文本故事的不同段落提供更准确的场景描述"""
+        """生成基于特定段落分析的场景提示词，为长文本故事的不同段落提供更准确、简洁的场景描述"""
         if not self.segment_analyses:
             # 如果没有分段分析结果，回退到标准方法
             return self.generate_scene_prompt(sentences)
@@ -418,7 +426,7 @@ class StoryAnalyzer:
         context = "\n".join(sentences)
         
         try:
-            # 翻译和生成场景描述的逻辑与standard方法相同
+            # 翻译和生成场景描述的逻辑与standard方法相同，但生成更简洁的提示词
             translation_prompt = f"""
             Translate the following text to English if it's not already in English.
             For culture, location, era, and style terms, provide the most appropriate English equivalent.
@@ -462,44 +470,51 @@ class StoryAnalyzer:
                 # 继续使用原始值
             
             prompt = f"""
-            Create a detailed visual scene description based on this text:
+            Create a CONCISE visual scene description based on this text:
             
             "{context}"
             
-            Your description should reflect these elements:
+            Your description should reflect:
             - Culture: {culture}
             - Location: {location}
             - Time period: {era}
             - Visual style: {style}
             
-            Format your response as a single paragraph with this structure:
-            [Setting], [Character details], [Action/Expression], [Environment details]
+            Include ONLY the essential visual elements that would appear in an image. 
+            Format as: "[Setting], [Main character action], [Key visual details]"
             
-            Your response must be a creative scene description only, without any explanations, apologies, or refusals.
-            Ensure your response is in English only.
+            BE EXTREMELY CONCISE. Use 30 words maximum. Focus only on visually important elements.
+            No unnecessary adjectives or descriptions. No explanations or non-visual elements.
+            Your response must be in English only.
             """
             
             response = self.client.chat.completions.create(
                 model=self.model,
                 messages=[
-                    {"role": "system", "content": "You are a creative scene description generator that can visualize any setting or time period without limitations. Always respond in English only."},
+                    {"role": "system", "content": "You are a concise scene description generator that focuses only on essential visual elements for image generation. Always respond in English only."},
                     {"role": "user", "content": prompt}
                 ],
                 temperature=0.7,
-                max_tokens=150
+                max_tokens=100
             )
             
             scene = response.choices[0].message.content.strip()
             
             if any(phrase in scene for phrase in ["I'm sorry", "I cannot", "I apologize", "I'm unable", "I can only"]):
                 print(f"检测到拒绝回应: {scene}")
-                scene = f"[{location} during {era}, with {culture} cultural elements], [Characters from the story], [Engaged in meaningful interaction], [In a detailed environment with {style} visual style]"
+                scene = f"{location} during {era}, {culture} style"
             
-            final_prompt = f"{culture}, {location}, {era}, {scene}, {style}, masterpiece, best quality,"
+            # 清理和简化场景描述
+            scene = re.sub(r'\[|\]|\(|\)', '', scene)  # 移除括号
+            scene = re.sub(r',\s*,', ',', scene)  # 移除连续逗号
+            scene = re.sub(r'\s+', ' ', scene).strip()  # 规范化空格
+            
+            # 生成简洁的最终提示词
+            final_prompt = f"{culture}, {location}, {era}, {scene}, {style} style, high quality"
             return final_prompt
         except Exception as e:
             print(f"生成段落特定场景描述时出错: {e}")
-            return f"{culture}, {location}, {era}, detailed scene with {style} style, masterpiece, best quality,"
+            return f"{culture}, {location}, {era}, {style} style, high quality"
     
     def _find_segment_for_sentences(self, sentences: List[str]) -> int:
         """尝试确定给定句子属于哪个段落"""
@@ -607,37 +622,4 @@ class StoryAnalyzer:
         except Exception as e:
             print(f"读取音频信息时出错: {e}")
             return 2.0
-    
-    def identify_speakers(self, text: str) -> Dict[str, str]:
-        """识别文本中的说话者和对话内容"""
-        prompt = """
-        分析以下文本，识别每句话的说话者。返回 JSON 格式：
-        {
-            "sentences": [
-                {
-                    "text": "原文内容",
-                    "speaker": "说话者名称（对于非对话使用 narrator）",
-                    "type": "dialogue/narration"
-                }
-            ]
-        }
-        注意：
-        1. 「」或『』中的内容为对话
-        2. 根据上下文判断说话者
-        3. 非对话部分的说话者为 narrator
-        """
-        
-        try:
-            response = self.client.chat.completions.create(
-                model=self.model,
-                messages=[
-                    {"role": "system", "content": "你是一个专注于分析对话和说话者的分析器。"},
-                    {"role": "user", "content": prompt + "\n" + text}
-                ]
-            )
-            
-            return json.loads(response.choices[0].message.content)
-        except Exception as e:
-            print(f"识别说话者时出错: {e}")
-            return {"sentences": [{"text": text, "speaker": "narrator", "type": "narration"}]}
 
