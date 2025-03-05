@@ -14,11 +14,66 @@ class StoryAnalyzer:
         self.input_file = None
         self.story_era = None  # 存储分析出的时代背景
         self.story_location = None  # 存储分析出的地点
+        self.segment_analyses = []  # 存储分段分析结果
     
     def analyze_story(self, story_text: str, input_file: str) -> Dict:
         """分析整个故事，提取核心元素和时代背景"""
         self.input_file = input_file
         
+        # 对于短文本，直接分析整个故事
+        if len(story_text) < 1000:
+            return self._analyze_single_segment(story_text)
+        
+        # 对于长文本，进行分段分析
+        return self.analyze_story_in_segments(story_text)
+    
+    def analyze_story_in_segments(self, story_text: str, max_segment_length: int = 800) -> Dict:
+        """分段分析故事，处理长文本"""
+        print("故事较长，执行分段分析...")
+        
+        # 将故事分成段落
+        paragraphs = story_text.split('\n\n')
+        segments = []
+        current_segment = ""
+        
+        for paragraph in paragraphs:
+            if len(current_segment) + len(paragraph) < max_segment_length:
+                current_segment += paragraph + "\n\n"
+            else:
+                if current_segment:
+                    segments.append(current_segment.strip())
+                current_segment = paragraph + "\n\n"
+        
+        if current_segment:
+            segments.append(current_segment.strip())
+        
+        print(f"故事被分为 {len(segments)} 个段落进行分析")
+        
+        # 分析每个段落
+        self.segment_analyses = []
+        segment_settings = []
+        all_characters = {}
+        
+        for i, segment in enumerate(segments):
+            print(f"分析段落 {i+1}/{len(segments)}...")
+            segment_result = self._analyze_single_segment(segment, is_segment=True)
+            self.segment_analyses.append(segment_result)
+            
+            # 收集设置信息
+            if "setting" in segment_result:
+                segment_settings.append(segment_result["setting"])
+            
+            # 收集角色信息
+            if "characters" in segment_result:
+                for char_name, char_info in segment_result["characters"].items():
+                    if char_name not in all_characters:
+                        all_characters[char_name] = char_info
+        
+        # 整合分析结果
+        return self._consolidate_segment_analyses(segment_settings, all_characters)
+    
+    def _analyze_single_segment(self, text: str, is_segment: bool = False) -> Dict:
+        """分析单个文本段落"""
         analysis_prompt = """
         You are tasked with analyzing a story and extracting key elements.
         
@@ -39,7 +94,15 @@ class StoryAnalyzer:
                 }
             }
         }
+        """
         
+        if is_segment:
+            analysis_prompt += """
+            Note: You are analyzing a segment of a larger story, so focus on what's present in this segment.
+            If certain elements are unclear from this segment alone, make your best guess based on context.
+            """
+        
+        analysis_prompt += """
         Be accurate and specific. If the story doesn't explicitly mention certain elements, make reasonable inferences based on the context.
         Your response must be ONLY valid JSON without any explanations or apologies.
         """
@@ -49,7 +112,7 @@ class StoryAnalyzer:
                 model=self.model,
                 messages=[
                     {"role": "system", "content": "You are a precise cultural and historical analyzer that can identify elements from any culture or time period. Always return valid JSON."},
-                    {"role": "user", "content": analysis_prompt + "\n\nSTORY TEXT:\n" + story_text}
+                    {"role": "user", "content": analysis_prompt + "\n\nSTORY TEXT:\n" + text}
                 ],
                 response_format={"type": "json_object"}  # 强制返回JSON格式
             )
@@ -79,56 +142,109 @@ class StoryAnalyzer:
                         "characters": {}
                     }
             
-            # 确保返回基本结构
-            self.core_elements = {
-                "setting": {
-                    "culture": analysis_result.get("setting", {}).get("culture", "Universal"),
-                    "era": analysis_result.get("setting", {}).get("era", "Story Time"),
-                    "style": analysis_result.get("setting", {}).get("style", "Realistic")
-                },
-                "characters": analysis_result.get("characters", {}),
-                "cultural_elements": analysis_result.get("cultural_elements", {}),
-                "narration": analysis_result.get("narration", {})
-            }
+            # 如果不是分段分析，则设置核心元素
+            if not is_segment:
+                self._set_core_elements(analysis_result)
             
-            # 添加语音映射
-            if "characters" in analysis_result:
-                voice_mapping = self._assign_voices(analysis_result["characters"])
-            else:
-                voice_mapping = {"narrator": 8}
-            
-            self.core_elements["voice_mapping"] = voice_mapping
-            
-            # 保存时代背景信息
-            setting = analysis_result.get("setting", {})
-            self.story_era = setting.get("era", "Story Time")
-            self.story_location = setting.get("location", "Story World")
-            
-            print(f"分析结果 - 地点: {self.story_location}, 时代: {self.story_era}")
-            
-            return self.core_elements
+            return analysis_result
             
         except Exception as e:
-            print(f"分析故事时出错: {e}")
+            print(f"分析故事段落时出错: {e}")
             import traceback
             traceback.print_exc()
             
-            # 使用通用的默认值
-            self.story_era = "Story Time"
-            self.story_location = "Story World"
-            # 提供默认值而不是空对象
-            self.core_elements = {
+            # 返回默认值
+            return {
                 "setting": {
                     "culture": "Universal",
+                    "location": "Story World",
                     "era": "Story Time",
                     "style": "Realistic"
                 },
-                "characters": {},
-                "cultural_elements": {},
-                "narration": {"tone": "neutral"},
-                "voice_mapping": {"narrator": 8}
+                "characters": {}
             }
-            return self.core_elements
+    
+    def _consolidate_segment_analyses(self, segment_settings: List[Dict], all_characters: Dict) -> Dict:
+        """整合分段分析结果"""
+        # 合并设置信息，优先使用出现频率最高的值
+        culture_counts = {}
+        location_counts = {}
+        era_counts = {}
+        style_counts = {}
+        
+        for setting in segment_settings:
+            culture = setting.get("culture", "Universal")
+            location = setting.get("location", "Story World")
+            era = setting.get("era", "Story Time")
+            style = setting.get("style", "Realistic")
+            
+            culture_counts[culture] = culture_counts.get(culture, 0) + 1
+            location_counts[location] = location_counts.get(location, 0) + 1
+            era_counts[era] = era_counts.get(era, 0) + 1
+            style_counts[style] = style_counts.get(style, 0) + 1
+        
+        # 选择出现频率最高的值
+        culture = max(culture_counts.items(), key=lambda x: x[1])[0] if culture_counts else "Universal"
+        location = max(location_counts.items(), key=lambda x: x[1])[0] if location_counts else "Story World"
+        era = max(era_counts.items(), key=lambda x: x[1])[0] if era_counts else "Story Time"
+        style = max(style_counts.items(), key=lambda x: x[1])[0] if style_counts else "Realistic"
+        
+        # 创建整合的分析结果
+        consolidated_result = {
+            "setting": {
+                "culture": culture,
+                "location": location,
+                "era": era,
+                "style": style
+            },
+            "characters": all_characters,
+            "cultural_elements": {},
+            "narration": {"tone": "neutral"}
+        }
+        
+        # 设置语音映射
+        voice_mapping = self._assign_voices(all_characters)
+        consolidated_result["voice_mapping"] = voice_mapping
+        
+        # 存储设置信息
+        self.story_era = era
+        self.story_location = location
+        
+        # 设置核心元素
+        self._set_core_elements(consolidated_result)
+        
+        print(f"整合分析结果 - 文化: {culture}, 地点: {location}, 时代: {era}, 风格: {style}")
+        print(f"识别到的角色数量: {len(all_characters)}")
+        
+        return consolidated_result
+    
+    def _set_core_elements(self, analysis_result: Dict):
+        """设置核心元素和背景信息"""
+        self.core_elements = {
+            "setting": {
+                "culture": analysis_result.get("setting", {}).get("culture", "Universal"),
+                "era": analysis_result.get("setting", {}).get("era", "Story Time"),
+                "style": analysis_result.get("setting", {}).get("style", "Realistic")
+            },
+            "characters": analysis_result.get("characters", {}),
+            "cultural_elements": analysis_result.get("cultural_elements", {}),
+            "narration": analysis_result.get("narration", {})
+        }
+        
+        # 添加语音映射
+        if "characters" in analysis_result:
+            voice_mapping = self._assign_voices(analysis_result["characters"])
+        else:
+            voice_mapping = {"narrator": 8}
+        
+        self.core_elements["voice_mapping"] = voice_mapping
+        
+        # 保存时代背景信息
+        setting = analysis_result.get("setting", {})
+        self.story_era = setting.get("era", "Story Time")
+        self.story_location = setting.get("location", "Story World")
+        
+        print(f"分析结果 - 地点: {self.story_location}, 时代: {self.story_era}")
     
     def _assign_voices(self, characters: Dict) -> Dict:
         """为角色分配合适的 VOICEVOX 语音ID"""
@@ -175,31 +291,86 @@ class StoryAnalyzer:
         return voice_mapping
     
     def generate_scene_prompt(self, sentences: List[str]) -> str:
-        """生成场景提示词，使用统一的时代背景"""
-        if not self.story_era:
+        """生成场景提示词，使用统一的时代背景和风格，确保所有提示词都是英语"""
+        if not self.story_era or not hasattr(self, 'core_elements'):
             print("警告：需要先分析故事背景")
             return "error: story not analyzed"
 
+        # 获取分析出的背景信息
+        culture = self.core_elements.get("setting", {}).get("culture", "Universal")
+        location = self.story_location or "Story World"
+        era = self.story_era or "Story Time"
+        style = self.core_elements.get("setting", {}).get("style", "Realistic")
+        
         context = "\n".join(sentences)
         
         try:
+            # 首先确保所有内容都是英语
+            translation_prompt = f"""
+            Translate the following text to English if it's not already in English.
+            For culture, location, era, and style terms, provide the most appropriate English equivalent.
+            
+            Culture: {culture}
+            Location: {location}
+            Era: {era}
+            Style: {style}
+            Context: {context}
+            
+            Format your response as JSON:
+            {{
+                "culture": "English translation of culture",
+                "location": "English translation of location",
+                "era": "English translation of era",
+                "style": "English translation of style",
+                "context": "English translation of context"
+            }}
+            """
+            
+            translation_response = self.client.chat.completions.create(
+                model=self.model,
+                messages=[
+                    {"role": "system", "content": "You are a precise translator that converts non-English text to English while preserving meaning."},
+                    {"role": "user", "content": translation_prompt}
+                ],
+                response_format={"type": "json_object"}
+            )
+            
+            try:
+                translated_data = json.loads(translation_response.choices[0].message.content)
+                culture = translated_data.get("culture", culture)
+                location = translated_data.get("location", location)
+                era = translated_data.get("era", era)
+                style = translated_data.get("style", style)
+                context = translated_data.get("context", context)
+                
+                print(f"翻译后的背景信息 - 文化: {culture}, 地点: {location}, 时代: {era}, 风格: {style}")
+            except Exception as e:
+                print(f"翻译JSON解析错误: {e}")
+                # 继续使用原始值
+            
+            # 使用翻译后的英语内容生成场景描述
             prompt = f"""
             Create a detailed visual scene description based on this text:
             
             "{context}"
             
-            Your description should be set in {self.story_location} during {self.story_era}.
+            Your description should reflect these elements:
+            - Culture: {culture}
+            - Location: {location}
+            - Time period: {era}
+            - Visual style: {style}
             
             Format your response as a single paragraph with this structure:
             [Setting], [Character details], [Action/Expression], [Environment details]
             
             Your response must be a creative scene description only, without any explanations, apologies, or refusals.
+            Ensure your response is in English only.
             """
             
             response = self.client.chat.completions.create(
                 model=self.model,
                 messages=[
-                    {"role": "system", "content": "You are a creative scene description generator that can visualize any setting or time period without limitations."},
+                    {"role": "system", "content": "You are a creative scene description generator that can visualize any setting or time period without limitations. Always respond in English only."},
                     {"role": "user", "content": prompt}
                 ],
                 temperature=0.7,
@@ -212,25 +383,161 @@ class StoryAnalyzer:
             refusal_phrases = ["I'm sorry", "I cannot", "I apologize", "I'm unable", "I can only"]
             if any(phrase in scene for phrase in refusal_phrases):
                 print(f"检测到拒绝回应: {scene}")
-                # 创建一个通用的场景描述
-                scene = f"[{self.story_location}, {self.story_era}], [Characters from the story], [Engaged in meaningful interaction], [In a detailed environment that reflects the story's setting]"
+                # 创建一个使用分析结果的通用场景描述（确保是英语）
+                scene = f"[{location} during {era}, with {culture} cultural elements], [Characters from the story], [Engaged in meaningful interaction], [In a detailed environment with {style} visual style]"
             
-            return f"{scene}, masterpiece, best quality,"
+            # 构建最终提示词，明确包含背景信息，确保全部是英语
+            final_prompt = f"{culture}, {location}, {era}, {scene}, {style}, masterpiece, best quality,"
+            return final_prompt
         except Exception as e:
             print(f"生成场景描述时出错: {e}")
-            # 返回一个通用的场景描述
-            return f"[{self.story_location}, {self.story_era}], detailed scene, masterpiece, best quality,"
+            # 返回一个使用分析结果的通用场景描述
+            return f"{culture}, {location}, {era}, detailed scene with {style} style, masterpiece, best quality,"
+    
+    def generate_segment_specific_prompt(self, sentences: List[str], segment_index: int = None) -> str:
+        """生成基于特定段落分析的场景提示词，为长文本故事的不同段落提供更准确的场景描述"""
+        if not self.segment_analyses:
+            # 如果没有分段分析结果，回退到标准方法
+            return self.generate_scene_prompt(sentences)
+        
+        # 尝试确定句子属于哪个段落
+        if segment_index is None:
+            segment_index = self._find_segment_for_sentences(sentences)
+        
+        # 如果无法确定或超出范围，使用整合的结果
+        if segment_index is None or segment_index >= len(self.segment_analyses):
+            return self.generate_scene_prompt(sentences)
+        
+        # 使用特定段落的分析结果
+        segment_analysis = self.segment_analyses[segment_index]
+        culture = segment_analysis.get("setting", {}).get("culture", "Universal")
+        location = segment_analysis.get("setting", {}).get("location", "Story World")
+        era = segment_analysis.get("setting", {}).get("era", "Story Time")
+        style = segment_analysis.get("setting", {}).get("style", "Realistic")
+        
+        context = "\n".join(sentences)
+        
+        try:
+            # 翻译和生成场景描述的逻辑与standard方法相同
+            translation_prompt = f"""
+            Translate the following text to English if it's not already in English.
+            For culture, location, era, and style terms, provide the most appropriate English equivalent.
+            
+            Culture: {culture}
+            Location: {location}
+            Era: {era}
+            Style: {style}
+            Context: {context}
+            
+            Format your response as JSON:
+            {{
+                "culture": "English translation of culture",
+                "location": "English translation of location",
+                "era": "English translation of era",
+                "style": "English translation of style",
+                "context": "English translation of context"
+            }}
+            """
+            
+            translation_response = self.client.chat.completions.create(
+                model=self.model,
+                messages=[
+                    {"role": "system", "content": "You are a precise translator that converts non-English text to English while preserving meaning."},
+                    {"role": "user", "content": translation_prompt}
+                ],
+                response_format={"type": "json_object"}
+            )
+            
+            try:
+                translated_data = json.loads(translation_response.choices[0].message.content)
+                culture = translated_data.get("culture", culture)
+                location = translated_data.get("location", location)
+                era = translated_data.get("era", era)
+                style = translated_data.get("style", style)
+                context = translated_data.get("context", context)
+                
+                print(f"段落 {segment_index+1} 翻译后的背景信息 - 文化: {culture}, 地点: {location}, 时代: {era}, 风格: {style}")
+            except Exception as e:
+                print(f"翻译JSON解析错误: {e}")
+                # 继续使用原始值
+            
+            prompt = f"""
+            Create a detailed visual scene description based on this text:
+            
+            "{context}"
+            
+            Your description should reflect these elements:
+            - Culture: {culture}
+            - Location: {location}
+            - Time period: {era}
+            - Visual style: {style}
+            
+            Format your response as a single paragraph with this structure:
+            [Setting], [Character details], [Action/Expression], [Environment details]
+            
+            Your response must be a creative scene description only, without any explanations, apologies, or refusals.
+            Ensure your response is in English only.
+            """
+            
+            response = self.client.chat.completions.create(
+                model=self.model,
+                messages=[
+                    {"role": "system", "content": "You are a creative scene description generator that can visualize any setting or time period without limitations. Always respond in English only."},
+                    {"role": "user", "content": prompt}
+                ],
+                temperature=0.7,
+                max_tokens=150
+            )
+            
+            scene = response.choices[0].message.content.strip()
+            
+            if any(phrase in scene for phrase in ["I'm sorry", "I cannot", "I apologize", "I'm unable", "I can only"]):
+                print(f"检测到拒绝回应: {scene}")
+                scene = f"[{location} during {era}, with {culture} cultural elements], [Characters from the story], [Engaged in meaningful interaction], [In a detailed environment with {style} visual style]"
+            
+            final_prompt = f"{culture}, {location}, {era}, {scene}, {style}, masterpiece, best quality,"
+            return final_prompt
+        except Exception as e:
+            print(f"生成段落特定场景描述时出错: {e}")
+            return f"{culture}, {location}, {era}, detailed scene with {style} style, masterpiece, best quality,"
+    
+    def _find_segment_for_sentences(self, sentences: List[str]) -> int:
+        """尝试确定给定句子属于哪个段落"""
+        if not self.segment_analyses:
+            return None
+        
+        # 简单实现：返回第一个段落
+        # 在实际应用中，可以实现更复杂的匹配逻辑
+        return 0
     
     def identify_key_scenes(self, sentences: List[str]) -> List[Dict]:
-        """识别需要生成图像的关键场景"""
+        """识别需要生成图像的关键场景，支持分段处理"""
         try:
             key_scenes = []
             current_scene = None
             current_start_time = 0.0
             
+            # 为长文本启用分段处理
+            use_segments = len(self.segment_analyses) > 0
+            current_segment = 0
+            segment_boundaries = []
+            
+            # 如果使用分段，确定大致的段落边界（用于后续场景生成）
+            if use_segments:
+                total_sentences = len(sentences)
+                sentences_per_segment = total_sentences // len(self.segment_analyses)
+                for i in range(len(self.segment_analyses)):
+                    start_idx = i * sentences_per_segment
+                    segment_boundaries.append(start_idx)
+                segment_boundaries.append(total_sentences)  # 添加结尾边界
+            
             for i in range(0, len(sentences)):
                 sentence = sentences[i]
                 duration = self.get_sentence_duration(sentence)
+                
+                # 如果使用分段，检查是否到达新段落
+                if use_segments and i >= segment_boundaries[min(current_segment + 1, len(segment_boundaries) - 1)]:
+                    current_segment = min(current_segment + 1, len(self.segment_analyses) - 1)
                 
                 if current_scene is None:
                     current_scene = self._create_new_scene(i, sentence, duration, current_start_time)
@@ -238,7 +545,7 @@ class StoryAnalyzer:
                     self._extend_current_scene(current_scene, sentence, duration)
                 else:
                     # 结束当前场景
-                    self._finalize_scene(current_scene, i - 1)
+                    self._finalize_scene(current_scene, i - 1, current_segment if use_segments else None)
                     key_scenes.append(current_scene)
                     
                     # 开始新场景
@@ -247,7 +554,7 @@ class StoryAnalyzer:
             
             # 处理最后一个场景
             if current_scene:
-                self._finalize_scene(current_scene, len(sentences) - 1)
+                self._finalize_scene(current_scene, len(sentences) - 1, current_segment if use_segments else None)
                 key_scenes.append(current_scene)
             
             return key_scenes
@@ -274,10 +581,15 @@ class StoryAnalyzer:
         scene["duration"] += duration
         scene["end_time"] = scene["start_time"] + scene["duration"]
     
-    def _finalize_scene(self, scene: Dict, end_index: int):
-        """完成场景处理"""
+    def _finalize_scene(self, scene: Dict, end_index: int, segment_index: int = None):
+        """完成场景处理，可选择基于段落生成提示词"""
         scene["end_index"] = end_index
-        scene["prompt"] = self.generate_scene_prompt(scene["sentences"])
+        
+        # 如果有段落索引，使用段落特定的提示词生成
+        if segment_index is not None:
+            scene["prompt"] = self.generate_segment_specific_prompt(scene["sentences"], segment_index)
+        else:
+            scene["prompt"] = self.generate_scene_prompt(scene["sentences"])
     
     def get_sentence_duration(self, sentence: str) -> float:
         """获取句子的音频时长"""

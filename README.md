@@ -1,6 +1,6 @@
 # 故事视频生成器 | Story Video Generator | ストーリービデオジェネレーター
 
-**当前版本：v1.0.4**
+**当前版本：v1.0.7**
 [中文](#中文说明) | [English](#english-description) | [日本語](#日本語説明)
 
 <a id="中文说明"></a>
@@ -24,6 +24,9 @@
 - **电影效果增强**：改进视频制作流程，提供更自然的镜头转场效果
 - **故事分析优化**：改进故事分析模块，支持更准确的 JSON 解析和场景描述生成，确保时代背景和场景描述的一致性
 - **WebUI 界面**：新增基于 Gradio 的 Web 用户界面，提供更直观的操作体验和实时预览功能
+- **场景提示词优化**：改进场景提示词生成逻辑，更好地整合故事分析结果（文化、地点、时代和风格）到最终的图像生成提示词中
+- **提示词英语化**：添加自动翻译功能，确保所有图像生成提示词都使用英语，提高图像生成质量和一致性
+- **分段分析功能**：增加对长文本的分段分析支持，可以更精确地处理长故事并生成段落级别的提示词
 
 ### 安装要求
 
@@ -158,6 +161,9 @@ This is a tool that automatically converts text stories into videos, including v
 - **Enhanced Cinematic Effects**: Improved video production process with more natural camera transitions
 - **Story Analysis Optimization**: Improved story analysis module to support more accurate JSON parsing and scene description generation, ensuring consistency between era background and scene descriptions
 - **WebUI Interface**: Added a new Web UI based on Gradio for a more intuitive operation experience and real-time preview functionality
+- **Scene Prompt Optimization**: Improved scene prompt generation logic to better integrate story analysis results (culture, location, era, and style) into the final image generation prompts
+- **English Prompt Conversion**: Added automatic translation to ensure all image generation prompts use English, improving image generation quality and consistency
+- **Segmented Analysis Function**: Added support for segmented analysis of long texts, allowing for more precise handling of long stories and generation of paragraph-level prompts
 
 ### Installation Requirements
 
@@ -292,6 +298,9 @@ These effects are randomly applied to different scenes, creating a more vivid vi
 - **映画効果の強化**：より自然なカメラトランジション効果を提供する動画制作プロセスを改善
 - **ストーリー分析の最適化**：ストーリー分析モジュールを改善し、より正確なJSON解析とシーンの説明生成をサポートし、時代背景とシーンの説明の一貫性を確保
 - **WebUI インタフェース**：新しいWeb UIを追加し、より直感的な操作体験とリアルタイムプレビュー機能を提供
+- **シーンプロンプトの最適化**：シーンプロンプト生成ロジックを改善し、より正確なJSON解析とシーンの説明生成をサポートし、文化、場所、時代、スタイルを統合した最終的な画像生成プロンプトを作成
+- **プロンプト英語化**：自動翻訳機能を追加し、すべての画像生成プロンプトが英語を使用するようにして、画像生成の品質と一貫性を向上
+- **分段分析機能**：長いテキストの分節分析をサポートし、長いストーリーをより正確に処理し、段落レベルのプロンプトを生成
 
 ### インストール要件
 
