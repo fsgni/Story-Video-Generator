@@ -31,6 +31,15 @@ def create_video_with_scenes_moviepy(key_scenes_file: str, input_video: str, out
             img_path = f"output/images/{scene['image_file']}"
             print(f"处理图片: {img_path}")
             
+            # 检查图片文件是否存在
+            if not Path(img_path).exists():
+                print(f"警告: 图片文件不存在: {img_path}")
+                print(f"检查目录中的可用图片:")
+                for img in Path("output/images").glob("*.png"):
+                    print(f"  - {img.name}")
+                print(f"跳过此场景...")
+                continue
+            
             # 随机选择电影效果类型 (简化为只有3种效果)
             # 0=缓慢平移, 1=缓慢放大, 2=缓慢缩小
             effect_type = random.randint(0, 2)
