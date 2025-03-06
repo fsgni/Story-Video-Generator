@@ -1,6 +1,6 @@
 # 故事视频生成器 | Story Video Generator | ストーリービデオジェネレーター
 
-**当前版本：v1.0.7**
+**当前版本：v1.1.0**
 [中文](#中文说明) | [English](#english-description) | [日本語](#日本語説明)
 
 <a id="中文说明"></a>
@@ -13,11 +13,16 @@
 - 文本处理：智能分割长句子，保持语义完整性
 - 语音合成：使用 VOICEVOX 生成自然的日语语音，支持发音词典
 - 场景分析：使用 AI 分析故事内容，提取关键场景
-- 图像生成：基于场景描述自动生成相关图像
+- 图像生成：基于场景描述自动生成相关图像，支持多种风格和比例选择
 - 视频制作：将图像、音频和字幕合成为完整视频
+- Web界面：提供直观的用户界面，支持实时预览和参数调整
 
 ### 最新更新
 
+- **图像比例选择**：为Midjourney图像生成器添加了16:9和9:16宽高比选项，支持生成横屏和竖屏图像
+- **图像风格选择**：添加了预设风格选择功能，包括电影级品质、水墨画风格、油画风格等多种风格，以及自定义风格输入
+- **输出目录清理优化**：改进了输出目录清理功能，确保在开始新的视频生成时彻底清理所有临时文件
+- **WebUI界面优化**：改进了WebUI界面，添加了风格选择和图像比例选择控件，提供更直观的用户体验
 - **优化视频特效**：解决抖动和黑边问题，添加平滑的淡入淡出效果
 - **发音词典系统**：新增 VOICEVOX 发音词典管理功能，可纠正常见发音错误
 - **简化图像提示词**：优化图像生成提示词，减少过度细节描述
@@ -27,26 +32,45 @@
 - **场景提示词优化**：改进场景提示词生成逻辑，更好地整合故事分析结果（文化、地点、时代和风格）到最终的图像生成提示词中
 - **提示词英语化**：添加自动翻译功能，确保所有图像生成提示词都使用英语，提高图像生成质量和一致性
 - **分段分析功能**：增加对长文本的分段分析支持，可以更精确地处理长故事并生成段落级别的提示词
+- **提示词精简优化**：大幅精简图像生成提示词，移除不必要的词汇，控制提示词长度，提高图像生成准确性
 
 ### 安装要求
 
 1. Python 3.8+
 2. VOICEVOX 引擎（用于语音合成）
-3. ComfyUI（用于图像生成）
+3. ComfyUI（用于图像生成）或 Midjourney API 密钥
 4. FFmpeg（用于视频处理）
 5. 必要的 Python 库：
    ```
-   pip install openai websocket-client python-dotenv mecab-python3 numpy pillow pydub moviepy
+   pip install openai websocket-client python-dotenv mecab-python3 numpy pillow pydub moviepy gradio
    ```
 
 ### 使用方法
 
+#### 使用WebUI界面（推荐）
+
+1. 启动 VOICEVOX 和 ComfyUI 服务（如果使用本地图像生成）
+2. 在 `.env` 文件中设置 API 密钥
+3. 运行WebUI：
+   ```
+   python webui.py
+   ```
+4. 在浏览器中打开显示的URL（通常是 http://127.0.0.1:7860）
+5. 输入故事文本或选择已有文件
+6. 选择图像生成方式（ComfyUI或Midjourney）
+7. 如果选择Midjourney，可以设置图像比例（默认方形、16:9或9:16）
+8. 选择图像风格（电影级品质、水墨画风格、油画风格等）或输入自定义风格
+9. 点击"开始处理"按钮
+10. 等待处理完成，查看输出日志和生成的视频
+
+#### 使用命令行
+
 1. 将故事文本放入 `input_texts` 目录（.txt 格式）
 2. 在 `.env` 文件中设置 API 密钥
-3. 启动 VOICEVOX 和 ComfyUI 服务
+3. 启动 VOICEVOX 和 ComfyUI 服务（如果使用本地图像生成）
 4. 运行主程序：
    ```
-   python full_process.py
+   python full_process.py 你的故事文件.txt --image_generator [comfyui|midjourney] --aspect_ratio [16:9|9:16] --image_style "你的风格描述"
    ```
 5. 最终视频将保存在 `output` 目录中
 
@@ -151,11 +175,16 @@ This is a tool that automatically converts text stories into videos, including v
 - Text Processing: Intelligently splits long sentences while maintaining semantic integrity
 - Voice Synthesis: Uses VOICEVOX to generate natural Japanese voice with pronunciation dictionary support
 - Scene Analysis: Uses AI to analyze story content and extract key scenes
-- Image Generation: Automatically generates relevant images based on scene descriptions
+- Image Generation: Automatically generates relevant images based on scene descriptions, supports multiple style and aspect ratio options
 - Video Production: Combines images, audio, and subtitles into a complete video
+- WebUI Interface: Provides a user-friendly interface for real-time preview and parameter adjustment
 
 ### Latest Updates
 
+- **Image Aspect Ratio Selection**: Added 16:9 and 9:16 aspect ratio options for Midjourney image generator, supporting horizontal and vertical image generation
+- **Image Style Selection**: Added preset style selection feature, including multiple styles such as cinematic quality, ink painting style, oil painting style, and custom style input
+- **Output Directory Cleanup Optimization**: Improved output directory cleanup functionality to ensure thorough cleanup of all temporary files before starting a new video generation
+- **WebUI Interface Optimization**: Improved WebUI interface by adding style selection and image aspect ratio selection controls for a more intuitive user experience
 - **Pronunciation Dictionary System**: Added VOICEVOX pronunciation dictionary management to correct common pronunciation errors
 - **Simplified Image Prompts**: Optimized image generation prompts, reducing excessive detail descriptions
 - **Enhanced Cinematic Effects**: Improved video production process with more natural camera transitions
@@ -164,26 +193,45 @@ This is a tool that automatically converts text stories into videos, including v
 - **Scene Prompt Optimization**: Improved scene prompt generation logic to better integrate story analysis results (culture, location, era, and style) into the final image generation prompts
 - **English Prompt Conversion**: Added automatic translation to ensure all image generation prompts use English, improving image generation quality and consistency
 - **Segmented Analysis Function**: Added support for segmented analysis of long texts, allowing for more precise handling of long stories and generation of paragraph-level prompts
+- **Prompt Refinement Optimization**: Significantly simplified image generation prompts, removed unnecessary vocabulary, controlled prompt length to improve image generation accuracy
 
 ### Installation Requirements
 
 1. Python 3.8+
 2. VOICEVOX engine (for voice synthesis)
-3. ComfyUI (for image generation)
+3. ComfyUI (for image generation) or Midjourney API key
 4. FFmpeg (for video processing)
 5. Required Python libraries:
    ```
-   pip install openai websocket-client python-dotenv mecab-python3 numpy pillow pydub moviepy
+   pip install openai websocket-client python-dotenv mecab-python3 numpy pillow pydub moviepy gradio
    ```
 
 ### Usage
 
+#### Using WebUI Interface (Recommended)
+
+1. Start VOICEVOX and ComfyUI services (if using local image generation)
+2. Set API keys in the `.env` file
+3. Run WebUI:
+   ```
+   python webui.py
+   ```
+4. Open the displayed URL in your browser (usually http://127.0.0.1:7860)
+5. Input story text or select an existing file
+6. Select image generation method (ComfyUI or Midjourney)
+7. If selecting Midjourney, set image aspect ratio (default square, 16:9, or 9:16)
+8. Select image style (cinematic quality, ink painting style, oil painting style, etc.) or input custom style
+9. Click "Start Processing" button
+10. Wait for processing to complete, check output logs and generated video
+
+#### Using Command Line
+
 1. Place story text in the `input_texts` directory (.txt format)
 2. Set API keys in the `.env` file
-3. Start VOICEVOX and ComfyUI services
+3. Start VOICEVOX and ComfyUI services (if using local image generation)
 4. Run the main program:
    ```
-   python full_process.py
+   python full_process.py your_story_file.txt --image_generator [comfyui|midjourney] --aspect_ratio [16:9|9:16] --image_style "your_style_description"
    ```
 5. The final video will be saved in the `output` directory
 
@@ -301,6 +349,7 @@ These effects are randomly applied to different scenes, creating a more vivid vi
 - **シーンプロンプトの最適化**：シーンプロンプト生成ロジックを改善し、より正確なJSON解析とシーンの説明生成をサポートし、文化、場所、時代、スタイルを統合した最終的な画像生成プロンプトを作成
 - **プロンプト英語化**：自動翻訳機能を追加し、すべての画像生成プロンプトが英語を使用するようにして、画像生成の品質と一貫性を向上
 - **分段分析機能**：長いテキストの分節分析をサポートし、長いストーリーをより正確に処理し、段落レベルのプロンプトを生成
+- **プロンプト精緻化の最適化**：画像生成プロンプトを大幅に簡素化し、不要な語彙を削除、プロンプトの長さを制御して画像生成の精度を向上
 
 ### インストール要件
 
@@ -310,17 +359,35 @@ These effects are randomly applied to different scenes, creating a more vivid vi
 4. FFmpeg（動画処理用）
 5. 必要なPythonライブラリ：
    ```
-   pip install openai websocket-client python-dotenv mecab-python3 numpy pillow pydub moviepy
+   pip install openai websocket-client python-dotenv mecab-python3 numpy pillow pydub moviepy gradio
    ```
 
 ### 使用方法
 
+#### WebUIを使用する方法（推奨）
+
+1. VOICEVOXとComfyUIサービスを起動（ローカル画像生成を使用する場合）
+2. `.env`ファイルにAPIキーを設定
+3. WebUIを実行：
+   ```
+   python webui.py
+   ```
+4. 表示されたURLをブラウザで開く（通常はhttp://127.0.0.1:7860）
+5. ストーリーテキストを入力するか既存のファイルを選択
+6. 画像生成方法を選択（ComfyUIまたはMidjourney）
+7. Midjourneyを選択する場合は、画像のアスペクト比を設定（デフォルトは正方形、16:9または9:16）
+8. 画像のスタイルを選択（映画級の品質、水墨画スタイル、油絵スタイルなど）またはカスタムスタイルを入力
+9. "Start Processing"ボタンをクリック
+10. 処理が完了するのを待ち、出力ログと生成された動画を確認
+
+#### コマンドラインを使用する方法
+
 1. ストーリーテキストを`input_texts`ディレクトリに配置（.txt形式）
 2. `.env`ファイルにAPIキーを設定
-3. VOICEVOXとComfyUIサービスを起動
+3. VOICEVOXとComfyUIサービスを起動（ローカル画像生成を使用する場合）
 4. メインプログラムを実行：
    ```
-   python full_process.py
+   python full_process.py your_story_file.txt --image_generator [comfyui|midjourney] --aspect_ratio [16:9|9:16] --image_style "your_style_description"
    ```
 5. 最終動画は`output`ディレクトリに保存されます
 

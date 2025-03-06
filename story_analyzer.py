@@ -303,6 +303,41 @@ class StoryAnalyzer:
         era = self.story_era or "Story Time"
         style = self.core_elements.get("setting", {}).get("style", "Realistic")
         
+        # 获取人物特征信息
+        characters = self.core_elements.get("characters", {})
+        character_descriptions = []
+        
+        # 从句子中尝试识别出现的角色
+        context = "\n".join(sentences)
+        mentioned_characters = []
+        
+        for char_name in characters.keys():
+            if char_name.lower() in context.lower():
+                mentioned_characters.append(char_name)
+        
+        # 为提到的角色添加描述
+        for char_name in mentioned_characters:
+            char_info = characters.get(char_name, {})
+            appearance = char_info.get("appearance", "")
+            role = char_info.get("role", "")
+            gender = char_info.get("gender", "")
+            
+            # 构建更结构化的角色描述
+            char_desc_parts = []
+            if role:
+                char_desc_parts.append(f"role: {role}")
+            if appearance:
+                char_desc_parts.append(f"appearance: {appearance}")
+            if gender:
+                char_desc_parts.append(f"gender: {gender}")
+                
+            if char_desc_parts:
+                char_desc = f"{char_name}: {', '.join(char_desc_parts)}"
+                character_descriptions.append(char_desc)
+        
+        # 将角色描述合并为一个字符串
+        character_info = "; ".join(character_descriptions)
+        
         context = "\n".join(sentences)
         
         try:
@@ -316,6 +351,7 @@ class StoryAnalyzer:
             Era: {era}
             Style: {style}
             Context: {context}
+            Character Info: {character_info}
             
             Format your response as JSON:
             {{
@@ -323,7 +359,8 @@ class StoryAnalyzer:
                 "location": "English translation of location",
                 "era": "English translation of era",
                 "style": "English translation of style",
-                "context": "English translation of context"
+                "context": "English translation of context",
+                "character_info": "English translation of character_info"
             }}
             """
             
@@ -343,15 +380,18 @@ class StoryAnalyzer:
                 era = translated_data.get("era", era)
                 style = translated_data.get("style", style)
                 context = translated_data.get("context", context)
+                character_info = translated_data.get("character_info", character_info)
                 
                 print(f"翻译后的背景信息 - 文化: {culture}, 地点: {location}, 时代: {era}, 风格: {style}")
+                if character_info:
+                    print(f"翻译后的角色信息: {character_info}")
             except Exception as e:
                 print(f"翻译JSON解析错误: {e}")
                 # 继续使用原始值
             
-            # 使用翻译后的英语内容生成场景描述 - 修改为更简洁的提示词
+            # 使用翻译后的英语内容生成场景描述 - 修改为更具体的提示词
             prompt = f"""
-            Create a CONCISE visual scene description based on this text:
+            Create a DETAILED visual scene description based on this text:
             
             "{context}"
             
@@ -361,12 +401,21 @@ class StoryAnalyzer:
             - Time period: {era}
             - Visual style: {style}
             
-            Include ONLY the essential visual elements that would appear in an image. 
-            Format as: "[Setting], [Main character action], [Key visual details]"
+            Character information to include (DO NOT use character names, only describe their roles and appearances):
+            {character_info}
             
-            BE EXTREMELY CONCISE. Use 30 words maximum. Focus only on visually important elements.
-            No unnecessary adjectives or descriptions. No explanations or non-visual elements.
+            FOCUS ON THESE ELEMENTS:
+            1. SPECIFIC CHARACTER EXPRESSIONS - Include detailed facial expressions (e.g., "determined gaze", "furrowed brow", "confident smile")
+            2. PRECISE BODY LANGUAGE - Describe exact poses and gestures (e.g., "hand firmly gripping sword", "shoulders tensed in anticipation")
+            3. DYNAMIC ACTIONS - Show movement and energy (e.g., "lunging forward", "carefully examining map")
+            4. CLOSE-UP DETAILS - Include important close-up elements when relevant (e.g., "weathered hands on ancient document", "tears welling in eyes")
+            5. CHARACTER APPEARANCE - Incorporate the character descriptions provided above, but NEVER use character names - refer to them by their role (e.g., "general", "soldier", "nobleman") or appearance
+            
+            Format as: "[Setting], [Specific character actions with expressions], [Key visual details]"
+            
+            Use 40-50 words maximum. Focus on visually striking and emotionally resonant elements.
             Your response must be in English only.
+            IMPORTANT: DO NOT include any character names in your description.
             """
             
             response = self.client.chat.completions.create(
@@ -388,14 +437,47 @@ class StoryAnalyzer:
                 # 创建一个简洁的通用场景描述
                 scene = f"{location} during {era}, {culture} style"
             
-            # 构建最终提示词，明确包含背景信息，确保全部是英语，但更简洁
+            # 构建最终提示词，明确包含背景信息和人物特征，确保全部是英语，但保留更多细节
             # 移除可能导致AI模型混淆的不必要词汇
             scene = re.sub(r'\[|\]|\(|\)', '', scene)  # 移除括号
             scene = re.sub(r',\s*,', ',', scene)  # 移除连续逗号
             scene = re.sub(r'\s+', ' ', scene).strip()  # 规范化空格
             
-            # 生成简洁的最终提示词
-            final_prompt = f"{culture}, {location}, {era}, {scene}, {style} style, high quality"
+            # 提取人物特征关键词，用于增强提示词
+            character_keywords = ""
+            if character_info:
+                # 从角色描述中提取关键词
+                char_keywords = []
+                for desc in character_descriptions:
+                    parts = desc.split(":")
+                    if len(parts) > 1:
+                        # 提取角色特征，不包含角色名
+                        char_details = parts[1].strip()
+                        # 提取角色的角色类型（如将军、士兵等）
+                        role_match = re.search(r'role:\s*([^,]+)', char_details, re.IGNORECASE)
+                        role_type = ""
+                        if role_match:
+                            role_type = role_match.group(1).strip()
+                        
+                        # 提取最重要的外貌特征词
+                        appearance_details = re.sub(r'role:[^,]+,?', '', char_details, flags=re.IGNORECASE).strip()
+                        if appearance_details:
+                            if role_type:
+                                char_keywords.append(f"{role_type} with {appearance_details}")
+                            else:
+                                char_keywords.append(appearance_details)
+                
+                if char_keywords:
+                    character_keywords = ", ".join(char_keywords)
+            
+            # 生成详细的最终提示词，包含人物特征但不包含人名
+            if character_keywords:
+                # 移除风格词汇，让full_process.py控制风格
+                final_prompt = f"{culture}, {location}, {era}, {scene}, {character_keywords}"
+            else:
+                # 移除风格词汇，让full_process.py控制风格
+                final_prompt = f"{culture}, {location}, {era}, {scene}"
+            
             return final_prompt
         except Exception as e:
             print(f"生成场景描述时出错: {e}")
@@ -423,6 +505,41 @@ class StoryAnalyzer:
         era = segment_analysis.get("setting", {}).get("era", "Story Time")
         style = segment_analysis.get("setting", {}).get("style", "Realistic")
         
+        # 获取人物特征信息
+        characters = segment_analysis.get("characters", {})
+        character_descriptions = []
+        
+        # 从句子中尝试识别出现的角色
+        context = "\n".join(sentences)
+        mentioned_characters = []
+        
+        for char_name in characters.keys():
+            if char_name.lower() in context.lower():
+                mentioned_characters.append(char_name)
+        
+        # 为提到的角色添加描述
+        for char_name in mentioned_characters:
+            char_info = characters.get(char_name, {})
+            appearance = char_info.get("appearance", "")
+            role = char_info.get("role", "")
+            gender = char_info.get("gender", "")
+            
+            # 构建更结构化的角色描述
+            char_desc_parts = []
+            if role:
+                char_desc_parts.append(f"role: {role}")
+            if appearance:
+                char_desc_parts.append(f"appearance: {appearance}")
+            if gender:
+                char_desc_parts.append(f"gender: {gender}")
+                
+            if char_desc_parts:
+                char_desc = f"{char_name}: {', '.join(char_desc_parts)}"
+                character_descriptions.append(char_desc)
+        
+        # 将角色描述合并为一个字符串
+        character_info = "; ".join(character_descriptions)
+        
         context = "\n".join(sentences)
         
         try:
@@ -436,6 +553,7 @@ class StoryAnalyzer:
             Era: {era}
             Style: {style}
             Context: {context}
+            Character Info: {character_info}
             
             Format your response as JSON:
             {{
@@ -443,7 +561,8 @@ class StoryAnalyzer:
                 "location": "English translation of location",
                 "era": "English translation of era",
                 "style": "English translation of style",
-                "context": "English translation of context"
+                "context": "English translation of context",
+                "character_info": "English translation of character_info"
             }}
             """
             
@@ -463,14 +582,17 @@ class StoryAnalyzer:
                 era = translated_data.get("era", era)
                 style = translated_data.get("style", style)
                 context = translated_data.get("context", context)
+                character_info = translated_data.get("character_info", character_info)
                 
                 print(f"段落 {segment_index+1} 翻译后的背景信息 - 文化: {culture}, 地点: {location}, 时代: {era}, 风格: {style}")
+                if character_info:
+                    print(f"翻译后的角色信息: {character_info}")
             except Exception as e:
                 print(f"翻译JSON解析错误: {e}")
                 # 继续使用原始值
             
             prompt = f"""
-            Create a CONCISE visual scene description based on this text:
+            Create a DETAILED visual scene description based on this text:
             
             "{context}"
             
@@ -480,12 +602,21 @@ class StoryAnalyzer:
             - Time period: {era}
             - Visual style: {style}
             
-            Include ONLY the essential visual elements that would appear in an image. 
-            Format as: "[Setting], [Main character action], [Key visual details]"
+            Character information to include (DO NOT use character names, only describe their roles and appearances):
+            {character_info}
             
-            BE EXTREMELY CONCISE. Use 30 words maximum. Focus only on visually important elements.
-            No unnecessary adjectives or descriptions. No explanations or non-visual elements.
+            FOCUS ON THESE ELEMENTS:
+            1. SPECIFIC CHARACTER EXPRESSIONS - Include detailed facial expressions (e.g., "determined gaze", "furrowed brow", "confident smile")
+            2. PRECISE BODY LANGUAGE - Describe exact poses and gestures (e.g., "hand firmly gripping sword", "shoulders tensed in anticipation")
+            3. DYNAMIC ACTIONS - Show movement and energy (e.g., "lunging forward", "carefully examining map")
+            4. CLOSE-UP DETAILS - Include important close-up elements when relevant (e.g., "weathered hands on ancient document", "tears welling in eyes")
+            5. CHARACTER APPEARANCE - Incorporate the character descriptions provided above, but NEVER use character names - refer to them by their role (e.g., "general", "soldier", "nobleman") or appearance
+            
+            Format as: "[Setting], [Specific character actions with expressions], [Key visual details]"
+            
+            Use 40-50 words maximum. Focus on visually striking and emotionally resonant elements.
             Your response must be in English only.
+            IMPORTANT: DO NOT include any character names in your description.
             """
             
             response = self.client.chat.completions.create(
@@ -504,13 +635,46 @@ class StoryAnalyzer:
                 print(f"检测到拒绝回应: {scene}")
                 scene = f"{location} during {era}, {culture} style"
             
-            # 清理和简化场景描述
+            # 清理和简化场景描述，但保留表情、动作和人物特征的细节
             scene = re.sub(r'\[|\]|\(|\)', '', scene)  # 移除括号
             scene = re.sub(r',\s*,', ',', scene)  # 移除连续逗号
             scene = re.sub(r'\s+', ' ', scene).strip()  # 规范化空格
             
-            # 生成简洁的最终提示词
-            final_prompt = f"{culture}, {location}, {era}, {scene}, {style} style, high quality"
+            # 提取人物特征关键词，用于增强提示词
+            character_keywords = ""
+            if character_info:
+                # 从角色描述中提取关键词
+                char_keywords = []
+                for desc in character_descriptions:
+                    parts = desc.split(":")
+                    if len(parts) > 1:
+                        # 提取角色特征，不包含角色名
+                        char_details = parts[1].strip()
+                        # 提取角色的角色类型（如将军、士兵等）
+                        role_match = re.search(r'role:\s*([^,]+)', char_details, re.IGNORECASE)
+                        role_type = ""
+                        if role_match:
+                            role_type = role_match.group(1).strip()
+                        
+                        # 提取最重要的外貌特征词
+                        appearance_details = re.sub(r'role:[^,]+,?', '', char_details, flags=re.IGNORECASE).strip()
+                        if appearance_details:
+                            if role_type:
+                                char_keywords.append(f"{role_type} with {appearance_details}")
+                            else:
+                                char_keywords.append(appearance_details)
+                
+                if char_keywords:
+                    character_keywords = ", ".join(char_keywords)
+            
+            # 生成详细的最终提示词，包含人物特征但不包含人名
+            if character_keywords:
+                # 移除风格词汇，让full_process.py控制风格
+                final_prompt = f"{culture}, {location}, {era}, {scene}, {character_keywords}"
+            else:
+                # 移除风格词汇，让full_process.py控制风格
+                final_prompt = f"{culture}, {location}, {era}, {scene}"
+            
             return final_prompt
         except Exception as e:
             print(f"生成段落特定场景描述时出错: {e}")

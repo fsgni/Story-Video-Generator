@@ -13,61 +13,90 @@ import json
 import subprocess
 import argparse
 import sys
+import time
+import shutil
 
 def clean_output_directories():
     """清理输出目录中的旧文件"""
-    print("=== 清理旧数据 ===")
-    
-    # 需要清理的目录
-    dirs_to_clean = [
-        "output/audio",
-        "output/images",
-        "output/texts",
-        "temp",  # 临时文件目录
-    ]
-    
-    # 需要清理的文件
-    files_to_clean = [
-        "output/base_video.mp4",
-        "output/final_video.mp4",
-        "output/key_scenes.json",
-        "output/*.srt",
-        "output/*_final.mp4"
-    ]
-    
     try:
-        # 清理目录中的文件
-        for dir_path in dirs_to_clean:
-            dir_path = Path(dir_path)
-            if dir_path.exists():
-                for file in dir_path.glob("*"):
-                    try:
-                        file.unlink()
-                        print(f"已删除: {file}")
-                    except Exception as e:
-                        print(f"删除文件失败 {file}: {e}")
-        
-        # 清理特定文件
-        for file_pattern in files_to_clean:
-            for file in Path().glob(file_pattern):
+        # 清理图像目录
+        image_dir = Path("output/images")
+        if image_dir.exists():
+            for file in image_dir.glob("*.png"):
                 try:
                     file.unlink()
                     print(f"已删除: {file}")
                 except Exception as e:
-                    print(f"删除文件失败 {file}: {e}")
+                    print(f"无法删除 {file}: {e}")
         
-        print("清理完成！\n")
+        # 清理视频目录
+        video_dir = Path("output/videos")
+        if video_dir.exists():
+            for file in video_dir.glob("*.mp4"):
+                try:
+                    file.unlink()
+                    print(f"已删除: {file}")
+                except Exception as e:
+                    print(f"无法删除 {file}: {e}")
         
+        # 清理音频目录
+        audio_dir = Path("output/audio")
+        if audio_dir.exists():
+            for file in audio_dir.glob("*.*"):
+                try:
+                    file.unlink()
+                    print(f"已删除: {file}")
+                except Exception as e:
+                    print(f"无法删除 {file}: {e}")
+        
+        # 清理文本目录
+        texts_dir = Path("output/texts")
+        if texts_dir.exists():
+            for file in texts_dir.glob("*.txt"):
+                try:
+                    file.unlink()
+                    print(f"已删除: {file}")
+                except Exception as e:
+                    print(f"无法删除 {file}: {e}")
+        
+        # 清理根输出目录中的临时文件
+        output_dir = Path("output")
+        if output_dir.exists():
+            # 清理根目录中的视频文件
+            for file in output_dir.glob("*.mp4"):
+                try:
+                    file.unlink()
+                    print(f"已删除: {file}")
+                except Exception as e:
+                    print(f"无法删除 {file}: {e}")
+            
+            for file in output_dir.glob("*.srt"):
+                try:
+                    file.unlink()
+                    print(f"已删除: {file}")
+                except Exception as e:
+                    print(f"无法删除 {file}: {e}")
+            
+            for file in output_dir.glob("*.json"):
+                try:
+                    file.unlink()
+                    print(f"已删除: {file}")
+                except Exception as e:
+                    print(f"无法删除 {file}: {e}")
+    
+        print("输出目录清理完成")
     except Exception as e:
-        print(f"清理过程中出错: {e}")
+        print(f"清理输出目录时出错: {e}")
 
-def process_story(input_file: str, image_generator_type: str = "comfyui"):
+def process_story(input_file: str, image_generator_type: str = "comfyui", aspect_ratio: str = None, image_style: str = None):
     """
     完整的故事处理流程
     
     Args:
         input_file: 输入文本文件路径
         image_generator_type: 图像生成器类型，可选 "comfyui" 或 "midjourney"
+        aspect_ratio: 图像比例，可选值为 "16:9", "9:16" 或 None (默认方形)，仅对midjourney有效
+        image_style: 图像风格，例如: 'cinematic lighting, movie quality' 或 'ancient Chinese ink painting style'
     """
     # 检查输入文件是否存在
     full_input_path = input_file
@@ -87,7 +116,11 @@ def process_story(input_file: str, image_generator_type: str = "comfyui"):
     
     print("=== 开始处理故事 ===")
     print(f"输入文件: {full_input_path}")
-    print(f"图像生成方式: {image_generator_type}")
+    print(f"图像生成器: {image_generator_type}")
+    if aspect_ratio and image_generator_type.lower() == "midjourney":
+        print(f"图像比例: {aspect_ratio}")
+    if image_style:
+        print(f"图像风格: {image_style}")
     
     # 创建所需目录
     for dir_name in ["output", "output/audio", "output/images", "output/texts", "output/videos"]:
@@ -139,19 +172,70 @@ def process_story(input_file: str, image_generator_type: str = "comfyui"):
             json.dump(key_scenes, f, ensure_ascii=False, indent=2)
         print("场景分析完成，信息已保存")
         
-        # 4. 生成图片
-        print("\n4. 生成图片...")
+        # 4. 生成图像
+        print("\n4. 生成图像...")
+        image_files = []
         
-        # 根据用户选择的图像生成器类型创建相应的生成器
-        if image_generator_type.lower() == "midjourney":
-            print("使用 Midjourney API 生成图片...")
-            image_generator = MidjourneyGenerator()
-        else:  # 默认使用 ComfyUI
-            print("使用 ComfyUI 生成图片...")
-            image_generator = ComfyUIGenerator()
-        
-        image_generator.generate_images("output/key_scenes.json")
-        print("图片生成完成")
+        if image_generator_type.lower() == "comfyui":
+            # 使用ComfyUI生成图像
+            generator = ComfyUIGenerator()
+            for i, scene in enumerate(key_scenes):
+                # 确保提取正确的提示词
+                if isinstance(scene, dict) and 'prompt' in scene:
+                    scene_prompt = scene['prompt']
+                else:
+                    scene_prompt = str(scene)
+                
+                # 添加艺术风格
+                base_style = story_analysis.get('art_style', '')
+                # 如果用户指定了风格，优先使用用户指定的风格，不添加额外风格词汇
+                if image_style:
+                    # 直接使用场景提示词，不添加基础风格，避免风格混淆
+                    scene_prompt = f"{scene_prompt}, {image_style}, detailed facial expressions, dynamic poses, high quality"
+                elif base_style:
+                    scene_prompt = f"{scene_prompt}, {base_style}, detailed facial expressions, dynamic poses, high quality"
+                else:
+                    # 如果没有任何风格，添加通用高质量词汇
+                    scene_prompt = f"{scene_prompt}, detailed facial expressions, dynamic poses, high quality"
+                
+                print(f"场景 {i+1} 提示词: {scene_prompt}")
+                
+                # 使用与key_scenes.json中相同的文件名格式
+                image_filename = scene['image_file'] if isinstance(scene, dict) and 'image_file' in scene else f"scene_{i+1:03d}.png"
+                
+                image_file = generator.generate_image(scene_prompt, image_filename)
+                if image_file:
+                    image_files.append(image_file)
+        else:
+            # 使用Midjourney生成图像
+            generator = MidjourneyGenerator()
+            for i, scene in enumerate(key_scenes):
+                # 确保提取正确的提示词
+                if isinstance(scene, dict) and 'prompt' in scene:
+                    scene_prompt = scene['prompt']
+                else:
+                    scene_prompt = str(scene)
+                
+                # 添加艺术风格
+                base_style = story_analysis.get('art_style', '')
+                # 如果用户指定了风格，优先使用用户指定的风格，不添加额外风格词汇
+                if image_style:
+                    # 直接使用场景提示词，不添加基础风格，避免风格混淆
+                    scene_prompt = f"{scene_prompt}, {image_style}, detailed facial expressions, dynamic poses, high quality"
+                elif base_style:
+                    scene_prompt = f"{scene_prompt}, {base_style}, detailed facial expressions, dynamic poses, high quality"
+                else:
+                    # 如果没有任何风格，添加通用高质量词汇
+                    scene_prompt = f"{scene_prompt}, detailed facial expressions, dynamic poses, high quality"
+                
+                print(f"场景 {i+1} 提示词: {scene_prompt}")
+                
+                # 使用与key_scenes.json中相同的文件名格式
+                image_filename = scene['image_file'] if isinstance(scene, dict) and 'image_file' in scene else f"scene_{i+1:03d}.png"
+                
+                image_file = generator.generate_image(scene_prompt, image_filename, aspect_ratio=aspect_ratio)
+                if image_file:
+                    image_files.append(image_file)
         
         # 5. 生成字幕
         print("\n5. 生成字幕...")
@@ -191,7 +275,18 @@ if __name__ == "__main__":
                         help="选择图像生成器: comfyui (默认) 或 midjourney")
     parser.add_argument("-g", "--generator", choices=["comfyui", "midjourney"], default="comfyui",
                         help="选择图像生成器: comfyui (默认) 或 midjourney (与--image_generator相同)")
+    parser.add_argument("--aspect_ratio", choices=["16:9", "9:16"], 
+                        help="设置图像比例 (仅对midjourney有效): 16:9 (横屏) 或 9:16 (竖屏)")
+    parser.add_argument("--image_style", 
+                        help="设置图像风格，例如: 'cinematic lighting, movie quality' 或 'ancient Chinese ink painting style'")
     args = parser.parse_args()
+
+    # 打印参数信息，便于调试
+    print("命令行参数:")
+    print(f"  输入文件: {args.input_file}")
+    print(f"  图像生成器: {args.image_generator}")
+    print(f"  图像比例: {args.aspect_ratio}")
+    print(f"  图像风格: {args.image_style}")
 
     # 设置图像生成器 (优先使用--image_generator)
     image_generator = args.image_generator
@@ -223,7 +318,7 @@ if __name__ == "__main__":
     print(f"使用输入文件: {input_file}")
     
     # 处理函数已经包含文件存在性检查，直接调用
-    result = process_story(input_file, image_generator) 
+    result = process_story(input_file, image_generator, args.aspect_ratio, args.image_style) 
     
     if result is None or isinstance(result, str) and result.startswith("错误:"):
         sys.exit(1) 

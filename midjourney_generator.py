@@ -3,6 +3,7 @@ import json
 import time
 import os
 import random
+import string
 from pathlib import Path
 
 class MidjourneyGenerator:
@@ -26,12 +27,37 @@ class MidjourneyGenerator:
             print("2. API地址是否正确 (默认: http://localhost:8080/mj)")
             print("3. 防火墙是否允许该连接")
     
-    def submit_imagine_task(self, prompt):
-        """提交一个绘图任务"""
+    def submit_imagine_task(self, prompt, aspect_ratio=None):
+        """提交一个绘图任务
+        
+        Args:
+            prompt: 图像生成提示词
+            aspect_ratio: 图像比例，可选值为 "16:9", "9:16" 或 None (默认方形)
+        """
         url = f"{self.api_base_url}/submit/imagine"
+        
+        # 确保prompt是字符串类型
+        if not isinstance(prompt, str):
+            print(f"警告: 提示词不是字符串类型，尝试转换。原始类型: {type(prompt)}")
+            try:
+                if isinstance(prompt, dict) and 'prompt' in prompt:
+                    prompt = prompt['prompt']
+                prompt = str(prompt)
+            except Exception as e:
+                print(f"转换提示词失败: {e}")
+                return None
         
         # 增强提示词以提高质量
         enhanced_prompt = prompt + ", high quality, detailed"
+        
+        # 添加宽高比参数
+        if aspect_ratio:
+            if aspect_ratio == "16:9" or aspect_ratio == "9:16":
+                # 确保使用正确的格式: --ar 16:9 而不是 --16:9
+                enhanced_prompt += f" --ar {aspect_ratio}"
+                print(f"使用宽高比: --ar {aspect_ratio}")
+        
+        print(f"最终提示词: {enhanced_prompt}")
         
         payload = {
             "prompt": enhanced_prompt,
@@ -49,19 +75,24 @@ class MidjourneyGenerator:
             response.raise_for_status()  # 确保请求成功
             result = response.json()
             
-            if result.get("code") == -1:
-                print(f"API返回错误: {result.get('description', '未知错误')}")
+            if result.get("code") not in [1, 22]:  # 1=成功，22=排队中
+                error_msg = f"任务提交失败: {result.get('description', '未知错误')}"
+                print(error_msg)
+                return None
             
-            return result
+            task_id = result.get("result")
+            print(f"绘图任务已提交，任务ID: {task_id}")
+            return task_id
+            
         except requests.exceptions.Timeout:
-            print("提交绘图任务超时，请检查API服务器是否正常运行")
-            return {"code": -1, "description": "请求超时"}
-        except requests.exceptions.ConnectionError:
-            print("连接API服务器失败，请检查API服务器地址是否正确")
-            return {"code": -1, "description": "连接错误"}
+            print("提交任务超时，请检查网络连接和API服务器状态")
+            return None
+        except requests.exceptions.RequestException as e:
+            print(f"提交任务时发生错误: {e}")
+            return None
         except Exception as e:
-            print(f"提交绘图任务时出错: {e}")
-            return {"code": -1, "description": f"错误: {str(e)}"}
+            print(f"提交任务时发生未知错误: {e}")
+            return None
 
     def submit_upscale_task(self, task_id, index):
         """提交一个放大任务，从初始4图中选择一张"""
@@ -198,82 +229,93 @@ class MidjourneyGenerator:
         print("等待超时")
         return None
 
-    def generate_single_image(self, prompt, output_file, max_attempts=3):
-        """生成单张图片的完整流程，带有重试机制"""
+    def generate_image(self, prompt, output_filename=None, max_retries=3, aspect_ratio=None):
+        """生成图像的完整流程
+        
+        Args:
+            prompt: 图像生成提示词
+            output_filename: 输出文件名，如果不提供则自动生成
+            max_retries: 最大重试次数
+            aspect_ratio: 图像比例，可选值为 "16:9", "9:16" 或 None (默认方形)
+        
+        Returns:
+            生成的图像文件路径，如果失败则返回None
+        """
+        # 如果没有提供输出文件名，则自动生成一个
+        if not output_filename:
+            timestamp = int(time.time())
+            random_str = ''.join(random.choices(string.ascii_lowercase + string.digits, k=6))
+            output_filename = f"mj_{timestamp}_{random_str}.png"
+        
         # 确保输出目录存在
-        output_path = Path(output_file)
-        output_path.parent.mkdir(parents=True, exist_ok=True)
+        output_path = self.output_dir / output_filename
         
-        print(f"开始生成图片，提示词: {prompt}")
-        print(f"输出文件: {output_file}")
-        
-        for attempt in range(max_attempts):
-            if attempt > 0:
-                print(f"第{attempt+1}次尝试...")
-                time.sleep(10)  # 多次尝试之间稍作等待
+        # 重试机制
+        for attempt in range(max_retries):
+            try:
+                print(f"尝试 {attempt+1}/{max_retries} 生成图像...")
                 
-            # 1. 提交初始绘图任务
-            initial_result = self.submit_imagine_task(prompt)
-            
-            if initial_result.get("code") not in [1, 22]:  # 1=成功，22=排队中
-                print(f"初始任务提交失败: {initial_result.get('description', '未知错误')}")
-                continue  # 尝试重新提交
-            
-            initial_task_id = initial_result.get("result")
-            print(f"初始任务ID: {initial_task_id}")
-            
-            # 2. 等待初始任务完成
-            print("等待初始任务完成...")
-            initial_result = self.wait_for_task_completion(initial_task_id)
-            
-            if not initial_result or initial_result.get("status") != "SUCCESS":
-                print("初始任务未成功完成")
-                continue  # 尝试重新提交
-            
-            # 保存初始的四宫格图像
-            initial_image_url = initial_result.get("imageUrl")
-            if initial_image_url:
-                # 创建一个带有_grid后缀的文件名，用于保存四宫格图像
-                grid_filename = str(output_path).replace(".png", "_grid.png")
-                self.download_image(initial_image_url, grid_filename)
-            else:
-                print("未找到初始图像URL")
-                continue  # 尝试重新提交
-            
-            # 3. 随机选择一个图像进行放大 (U1, U2, U3, U4)
-            upscale_index = random.randint(1, 4)
-            upscale_result = self.submit_upscale_task(initial_task_id, upscale_index)
-            
-            if upscale_result.get("code") not in [1, 21, 22]:  # 1=成功，21=已存在，22=排队中
-                print(f"放大任务提交失败: {upscale_result.get('description', '未知错误')}")
-                continue  # 尝试重新提交
-            
-            # 获取放大任务ID
-            upscale_task_id = upscale_result.get("result")
-            print(f"放大任务ID: {upscale_task_id}")
-            
-            # 4. 等待放大任务完成
-            print("等待放大任务完成...")
-            final_result = self.wait_for_task_completion(upscale_task_id)
-            
-            if not final_result or final_result.get("status") != "SUCCESS":
-                print("放大任务未成功完成")
-                continue  # 尝试重新提交
-            
-            # 5. 下载最终的放大图像
-            final_image_url = final_result.get("imageUrl")
-            if final_image_url:
-                download_success = self.download_image(final_image_url, output_file)
-                if not download_success:
-                    print("最终图片无法自动下载")
+                # 1. 提交初始绘图任务
+                initial_task_id = self.submit_imagine_task(prompt, aspect_ratio)
+                if not initial_task_id:
+                    print("提交初始任务失败，重试...")
+                    continue
+                
+                # 2. 等待初始任务完成
+                print("等待初始任务完成...")
+                initial_result = self.wait_for_task_completion(initial_task_id)
+                
+                if not initial_result or initial_result.get("status") != "SUCCESS":
+                    print("初始任务未成功完成")
                     continue  # 尝试重新提交
-                return True
-            else:
-                print("未找到最终图片URL")
-                continue  # 尝试重新提交
+                
+                # 保存初始的四宫格图像
+                initial_image_url = initial_result.get("imageUrl")
+                if initial_image_url:
+                    # 创建一个带有_grid后缀的文件名，用于保存四宫格图像
+                    grid_filename = str(output_path).replace(".png", "_grid.png")
+                    self.download_image(initial_image_url, grid_filename)
+                else:
+                    print("未找到初始图像URL")
+                    continue  # 尝试重新提交
+                
+                # 3. 随机选择一个图像进行放大 (U1, U2, U3, U4)
+                upscale_index = random.randint(1, 4)
+                upscale_result = self.submit_upscale_task(initial_task_id, upscale_index)
+                
+                if upscale_result.get("code") not in [1, 21, 22]:  # 1=成功，21=已存在，22=排队中
+                    print(f"放大任务提交失败: {upscale_result.get('description', '未知错误')}")
+                    continue  # 尝试重新提交
+                
+                # 获取放大任务ID
+                upscale_task_id = upscale_result.get("result")
+                print(f"放大任务ID: {upscale_task_id}")
+                
+                # 4. 等待放大任务完成
+                print("等待放大任务完成...")
+                final_result = self.wait_for_task_completion(upscale_task_id)
+                
+                if not final_result or final_result.get("status") != "SUCCESS":
+                    print("放大任务未成功完成")
+                    continue  # 尝试重新提交
+                
+                # 5. 下载最终的放大图像
+                final_image_url = final_result.get("imageUrl")
+                if final_image_url:
+                    download_success = self.download_image(final_image_url, output_path)
+                    if not download_success:
+                        print("最终图片无法自动下载")
+                        continue  # 尝试重新提交
+                    return output_path
+                else:
+                    print("未找到最终图片URL")
+                    continue  # 尝试重新提交
+            except Exception as e:
+                print(f"生成图像时发生错误: {e}")
+                time.sleep(5)  # 等待一段时间后重试
         
-        print(f"经过{max_attempts}次尝试后仍然失败")
-        return False
+        print(f"经过{max_retries}次尝试后仍然失败")
+        return None
 
     def generate_images(self, key_scenes_file: str):
         """为所有场景生成图片，与ComfyUIGenerator接口兼容"""
@@ -287,7 +329,14 @@ class MidjourneyGenerator:
             success_count = 0
             for scene in scenes:
                 print(f"\n生成场景 {scene['scene_id']} 的图片...")
-                print(f"提示词: {scene['prompt']}")
+                
+                # 确保提取正确的提示词
+                if isinstance(scene, dict) and 'prompt' in scene:
+                    prompt = scene['prompt']
+                else:
+                    prompt = str(scene)
+                
+                print(f"提示词: {prompt}")
                 
                 # 准备输出文件名
                 output_file = self.output_dir / scene['image_file']
@@ -297,7 +346,7 @@ class MidjourneyGenerator:
                     continue
                 
                 # 使用Midjourney生成图片
-                success = self.generate_single_image(scene["prompt"], output_file)
+                success = self.generate_image(prompt, output_file)
                 
                 if success:
                     success_count += 1
@@ -323,7 +372,7 @@ if __name__ == "__main__":
     
     # 测试API连接
     test_file = "output/images/test_midjourney.png"
-    result = generator.generate_single_image(
+    result = generator.generate_image(
         "a beautiful cat in ancient Chinese style, digital painting", 
         test_file
     )

@@ -38,7 +38,7 @@ def list_video_files():
         return []
     return [f for f in files]
 
-def process_story(text_input, selected_file, image_generator_type):
+def process_story(text_input, selected_file, image_generator_type, aspect_ratio, image_style_type, custom_style):
     """处理故事，可以是直接输入的文本或选择的文件"""
     if not text_input and not selected_file:
         return "错误: 请输入文本或选择一个文件", None
@@ -60,6 +60,34 @@ def process_story(text_input, selected_file, image_generator_type):
     
     # 构建命令
     cmd = [sys.executable, "full_process.py", input_file, "--image_generator", image_generator_type]
+    
+    # 如果选择了图像比例且使用的是midjourney，添加aspect_ratio参数
+    if aspect_ratio and aspect_ratio != "默认方形" and image_generator_type == "midjourney":
+        # 确保使用正确的参数名称
+        cmd.extend(["--aspect_ratio", aspect_ratio])
+        print(f"添加宽高比参数: --aspect_ratio {aspect_ratio}")
+    
+    # 处理图像风格
+    final_style = None
+    if image_style_type == "自定义风格" and custom_style:
+        final_style = custom_style
+    elif image_style_type != "无风格" and image_style_type != "自定义风格":
+        # 使用预设风格
+        style_presets = {
+            "电影级品质": "cinematic lighting, movie quality, professional photography, 8k ultra HD",
+            "水墨画风格": "traditional Chinese ink painting style, elegant, flowing ink, minimalist",
+            "油画风格": "oil painting style, detailed brushwork, rich colors, artistic",
+            "动漫风格": "anime style, vibrant colors, clean lines, expressive",
+            "写实风格": "photorealistic, highly detailed, sharp focus, natural lighting",
+            "梦幻风格": "dreamy atmosphere, soft lighting, ethereal colors, mystical"
+        }
+        final_style = style_presets.get(image_style_type)
+    
+    if final_style:
+        cmd.extend(["--image_style", final_style])
+        print(f"添加图像风格: {final_style}")
+    
+    print(f"执行命令: {' '.join(cmd)}")
     
     # 运行命令并实时获取输出
     process = subprocess.Popen(
@@ -125,7 +153,28 @@ with gr.Blocks(title="故事视频生成器", theme=gr.themes.Soft()) as demo:
                     choices=["comfyui", "midjourney"],
                     value="comfyui"
                 )
-                process_button = gr.Button("开始处理", variant="primary")
+                
+                aspect_ratio = gr.Radio(
+                    label="选择图像比例 (仅对Midjourney有效)",
+                    choices=["默认方形", "16:9", "9:16"],
+                    value="默认方形",
+                    visible=True
+                )
+            
+            with gr.Row():
+                image_style_type = gr.Radio(
+                    label="选择图像风格",
+                    choices=["无风格", "电影级品质", "水墨画风格", "油画风格", "动漫风格", "写实风格", "梦幻风格", "自定义风格"],
+                    value="无风格"
+                )
+                
+                custom_style = gr.Textbox(
+                    label="自定义风格 (仅在选择'自定义风格'时生效)",
+                    placeholder="例如: cinematic lighting, detailed, 8k ultra HD...",
+                    visible=True
+                )
+                
+            process_button = gr.Button("开始处理", variant="primary")
         
         with gr.Column(scale=3):
             output_text = gr.Textbox(
@@ -163,9 +212,31 @@ with gr.Blocks(title="故事视频生成器", theme=gr.themes.Soft()) as demo:
     
     # 事件处理
     refresh_button.click(list_input_files, outputs=file_dropdown)
+    
+    # 当选择midjourney时显示图像比例选项
+    def update_aspect_ratio_visibility(generator_type):
+        return gr.update(visible=(generator_type == "midjourney"))
+    
+    # 当选择自定义风格时显示自定义风格输入框
+    def update_custom_style_visibility(style_type):
+        return gr.update(visible=(style_type == "自定义风格"))
+    
+    image_generator.change(
+        update_aspect_ratio_visibility,
+        inputs=[image_generator],
+        outputs=[aspect_ratio]
+    )
+    
+    image_style_type.change(
+        update_custom_style_visibility,
+        inputs=[image_style_type],
+        outputs=[custom_style]
+    )
+    
+    # 处理按钮点击事件
     process_button.click(
-        process_story, 
-        inputs=[text_input, file_dropdown, image_generator], 
+        process_story,
+        inputs=[text_input, file_dropdown, image_generator, aspect_ratio, image_style_type, custom_style],
         outputs=[output_text, video_output]
     )
     
@@ -177,11 +248,13 @@ with gr.Blocks(title="故事视频生成器", theme=gr.themes.Soft()) as demo:
     ## 使用说明
     1. 直接在文本框中输入故事，或选择input_texts目录中的文件
     2. 选择图像生成方式: ComfyUI(本地) 或 Midjourney(API)
-    3. 点击"开始处理"按钮
-    4. 等待处理完成，查看输出日志
-    5. 生成的视频将在处理完成后直接显示在界面上
-    6. 您也可以在"已生成的视频"部分浏览和查看所有生成的视频
-    7. 视频播放器下方有下载按钮，可以将视频保存到本地
+    3. 如果选择Midjourney，可以设置图像比例: 默认方形、16:9(横屏)或9:16(竖屏)
+    4. 选择图像风格
+    5. 点击"开始处理"按钮
+    6. 等待处理完成，查看输出日志
+    7. 生成的视频将在处理完成后直接显示在界面上
+    8. 您也可以在"已生成的视频"部分浏览和查看所有生成的视频
+    9. 视频播放器下方有下载按钮，可以将视频保存到本地
     """)
 
 # 启动服务
