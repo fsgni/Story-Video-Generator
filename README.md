@@ -1,12 +1,12 @@
-# 故事视频生成器 | Story Video Generator | ストーリービデオジェネレーター
+# NarraSync
 
-**当前版本：v1.1.0**
+**当前版本：v1.2.0**
 [中文](#中文说明) | [English](#english-description) | [日本語](#日本語説明)
 
 <a id="中文说明"></a>
 ## 中文说明
 
-这是一个自动将文本故事转换为视频的工具，包含语音合成、场景分析、图像生成和视频制作功能。
+NarraSync 是一个智能叙事同步工具，能够自动将文本故事转换为视频，包含语音合成、场景分析、图像生成和视频制作功能。通过先进的AI技术，NarraSync将文字与视觉完美同步，创造出引人入胜的视听体验。
 
 ### 功能特点
 
@@ -19,6 +19,7 @@
 
 ### 最新更新
 
+- **ComfyUI风格选择**：添加了多种ComfyUI风格选项，包括水墨、手绘、古风、插画、写实和电影风格
 - **图像比例选择**：为Midjourney图像生成器添加了16:9和9:16宽高比选项，支持生成横屏和竖屏图像
 - **图像风格选择**：添加了预设风格选择功能，包括电影级品质、水墨画风格、油画风格等多种风格，以及自定义风格输入
 - **输出目录清理优化**：改进了输出目录清理功能，确保在开始新的视频生成时彻底清理所有临时文件
@@ -161,14 +162,14 @@ MoviePy 版本提供以下电影般的镜头效果：
 - 推荐文本长度：500-2000字（约5-15分钟视频）
 - 最大可处理文本：约5000-10000字（约15-30分钟视频）
 
-[返回顶部](#故事视频生成器--story-video-generator--ストーリービデオジェネレーター)
+[返回顶部](#NarraSync)
 
 ---
 
 <a id="english-description"></a>
 ## English Description
 
-This is a tool that automatically converts text stories into videos, including voice synthesis, scene analysis, image generation, and video production.
+NarraSync is an intelligent narrative synchronization tool that automatically converts text stories into videos, including voice synthesis, scene analysis, image generation, and video production. Through advanced AI technology, NarraSync perfectly synchronizes text with visuals, creating an engaging audiovisual experience.
 
 ### Features
 
@@ -181,6 +182,7 @@ This is a tool that automatically converts text stories into videos, including v
 
 ### Latest Updates
 
+- **ComfyUI Style Selection**: Added multiple ComfyUI style options, including ink painting, hand-drawn, classical Chinese, illustration, realistic, and cinematic styles
 - **Image Aspect Ratio Selection**: Added 16:9 and 9:16 aspect ratio options for Midjourney image generator, supporting horizontal and vertical image generation
 - **Image Style Selection**: Added preset style selection feature, including multiple styles such as cinematic quality, ink painting style, oil painting style, and custom style input
 - **Output Directory Cleanup Optimization**: Improved output directory cleanup functionality to ensure thorough cleanup of all temporary files before starting a new video generation
@@ -322,14 +324,14 @@ These effects are randomly applied to different scenes, creating a more vivid vi
 - Recommended text length: 500-2000 characters (about 5-15 minute video)
 - Maximum processable text: about 5000-10000 characters (about 15-30 minute video)
 
-[Back to Top](#故事视频生成器--story-video-generator--ストーリービデオジェネレーター)
+[Back to Top](#NarraSync)
 
 ---
 
 <a id="日本語説明"></a>
 ## 日本語説明
 
-これはテキストストーリーを自動的に動画に変換するツールで、音声合成、シーン分析、画像生成、動画制作機能を含みます。
+NarraSyncは、テキストストーリーを自動的に動画に変換するインテリジェントなナラティブ同期ツールで、音声合成、シーン分析、画像生成、動画制作機能を含みます。先進的なAI技術により、NarraSyncはテキストとビジュアルを完璧に同期させ、魅力的な視聴覚体験を創り出します。
 
 ### 機能特徴
 
@@ -478,7 +480,7 @@ MoviePyバージョンは以下の映画のようなカメラ効果を提供し�
 - 推奨テキスト長：500〜2000文字（約5〜15分の動画）
 - 最大処理可能テキスト：約5000〜10000文字（約15〜30分の動画）
 
-[トップに戻る](#故事视频生成器--story-video-generator--ストーリービデオジェネレーター)
+[トップに戻る](#NarraSync)
 
 ## 更新説明
 
