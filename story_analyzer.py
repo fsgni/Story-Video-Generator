@@ -5,9 +5,23 @@ import os
 import json
 from pathlib import Path
 import re
+import sys
+import time
+import random
+import string
+import locale
+
+# 设置系统编码为UTF-8，解决Windows命令行的编码问题
+if sys.stdout.encoding != 'utf-8':
+    if hasattr(sys.stdout, 'reconfigure'):
+        sys.stdout.reconfigure(encoding='utf-8')
+    elif hasattr(sys.stdout, 'buffer'):
+        import io
+        sys.stdout = io.TextIOWrapper(sys.stdout.buffer, encoding='utf-8', errors='backslashreplace')
 
 class StoryAnalyzer:
     def __init__(self):
+        """初始化故事分析器"""
         load_dotenv()
         self.client = OpenAI(api_key=os.getenv('OPENAI_API_KEY'))
         self.model = "gpt-4o-mini" # 必须使用 gpt-4o-mini 模型 不得擅自修改
@@ -16,17 +30,35 @@ class StoryAnalyzer:
         self.story_era = None  # 存储分析出的时代背景
         self.story_location = None  # 存储分析出的地点
         self.segment_analyses = []  # 存储分段分析结果
+        
+        # 添加一个列表，用于检测错误的文化背景
+        self.incorrect_cultures = ["Japanese", "Chinese", "Korean", "Asian"]
     
     def analyze_story(self, story_text: str, input_file: str) -> Dict:
-        """分析整个故事，提取核心元素和时代背景"""
+        """分析故事文本，提取关键信息"""
         self.input_file = input_file
         
-        # 对于短文本，直接分析整个故事
-        if len(story_text) < 1000:
-            return self._analyze_single_segment(story_text)
+        # 检查文本长度，决定是否使用分段处理
+        if len(story_text) > 2000:
+            print(f"故事较长 ({len(story_text)} 字符)，使用分段处理...")
+            analysis_result = self.analyze_story_in_segments(story_text)
+        else:
+            print(f"故事较短 ({len(story_text)} 字符)，使用单次处理...")
+            analysis_result = self._analyze_single_segment(story_text)
         
-        # 对于长文本，进行分段分析
-        return self.analyze_story_in_segments(story_text)
+        # 保存全局文化背景信息，确保所有场景使用一致的背景
+        if 'setting' in analysis_result:
+            self.global_culture = analysis_result['setting'].get('culture', 'Universal')
+            self.global_location = analysis_result['setting'].get('location', 'Story World')
+            self.global_era = analysis_result['setting'].get('era', 'Story Time')
+            self.global_style = analysis_result['setting'].get('style', 'Realistic')
+            
+            print(f"全局文化背景: {self.global_culture}")
+            print(f"全局地点: {self.global_location}")
+            print(f"全局时代: {self.global_era}")
+            print(f"全局风格: {self.global_style}")
+        
+        return analysis_result
     
     def analyze_story_in_segments(self, story_text: str, max_segment_length: int = 800) -> Dict:
         """分段分析故事，处理长文本"""
@@ -90,7 +122,6 @@ class StoryAnalyzer:
                 "character_name": {
                     "appearance": "brief visual description",
                     "role": "character's role in the story",
-                    "voice_type": "child/adult/elderly",
                     "gender": "male/female"
                 }
             }
@@ -120,7 +151,12 @@ class StoryAnalyzer:
             
             # 解析响应
             response_content = response.choices[0].message.content
-            print(f"GPT Response: {response_content}")
+            
+            # 修改print语句，确保能够处理所有Unicode字符
+            try:
+                print(f"GPT Response: {response_content}")
+            except UnicodeEncodeError:
+                print("GPT Response: [包含无法显示的Unicode字符]")
             
             try:
                 analysis_result = json.loads(response_content)
@@ -147,6 +183,12 @@ class StoryAnalyzer:
             if not is_segment:
                 self._set_core_elements(analysis_result)
             
+            # 添加调试信息，打印分析结果中的文化背景
+            if 'setting' in analysis_result:
+                print(f"分析结果中的文化背景: {analysis_result['setting'].get('culture', '未指定')}")
+                print(f"分析结果中的地点: {analysis_result['setting'].get('location', '未指定')}")
+                print(f"分析结果中的时代: {analysis_result['setting'].get('era', '未指定')}")
+            
             return analysis_result
             
         except Exception as e:
@@ -166,7 +208,7 @@ class StoryAnalyzer:
             }
     
     def _consolidate_segment_analyses(self, segment_settings: List[Dict], all_characters: Dict) -> Dict:
-        """整合分段分析结果"""
+        """整合多个段落的分析结果"""
         # 合并设置信息，优先使用出现频率最高的值
         culture_counts = {}
         location_counts = {}
@@ -203,10 +245,6 @@ class StoryAnalyzer:
             "narration": {"tone": "neutral"}
         }
         
-        # 设置语音映射
-        voice_mapping = self._assign_voices(all_characters)
-        consolidated_result["voice_mapping"] = voice_mapping
-        
         # 存储设置信息
         self.story_era = era
         self.story_location = location
@@ -232,14 +270,6 @@ class StoryAnalyzer:
             "narration": analysis_result.get("narration", {})
         }
         
-        # 添加语音映射
-        if "characters" in analysis_result:
-            voice_mapping = self._assign_voices(analysis_result["characters"])
-        else:
-            voice_mapping = {"narrator": 8}
-        
-        self.core_elements["voice_mapping"] = voice_mapping
-        
         # 保存时代背景信息
         setting = analysis_result.get("setting", {})
         self.story_era = setting.get("era", "Story Time")
@@ -247,61 +277,19 @@ class StoryAnalyzer:
         
         print(f"分析结果 - 地点: {self.story_location}, 时代: {self.story_era}")
     
-    def _assign_voices(self, characters: Dict) -> Dict:
-        """为角色分配合适的 VOICEVOX 语音ID"""
-        voice_mapping = {
-            "narrator": 8,  # 默认旁白使用 8 号声音
-        }
-        
-        # VOICEVOX 角色声音映射
-        voice_types = {
-            "child_female": [3, 4],      # 儿童女声
-            "child_male": [2],           # 儿童男声
-            "adult_female": [7, 9, 14],  # 成年女声
-            "adult_male": [11, 12, 13],  # 成年男声
-            "elderly_female": [16],      # 年长女声
-            "elderly_male": [17]         # 年长男声
-        }
-        
-        used_voices = set([8])  # 记录已使用的语音ID
-        
-        for char_name, char_info in characters.items():
-            # 根据角色特征选择合适的声音类型
-            age = "adult"
-            if "voice_type" in char_info:
-                if "child" in char_info["voice_type"].lower():
-                    age = "child"
-                elif "elderly" in char_info["voice_type"].lower():
-                    age = "elderly"
-            
-            gender = char_info.get("gender", "female").lower()
-            voice_type = f"{age}_{gender}"
-            
-            # 从可用声音中选择未使用的声音
-            available_voices = voice_types.get(voice_type, [])
-            for voice_id in available_voices:
-                if voice_id not in used_voices:
-                    voice_mapping[char_name] = voice_id
-                    used_voices.add(voice_id)
-                    break
-            
-            # 如果没有找到合适的声音，使用默认声音
-            if char_name not in voice_mapping:
-                voice_mapping[char_name] = 8
-        
-        return voice_mapping
-    
     def generate_scene_prompt(self, sentences: List[str]) -> str:
         """生成场景提示词，使用统一的时代背景和风格，确保所有提示词都是英语，并且简洁有效"""
         if not self.story_era or not hasattr(self, 'core_elements'):
             print("警告：需要先分析故事背景")
             return "error: story not analyzed"
 
-        # 获取分析出的背景信息
-        culture = self.core_elements.get("setting", {}).get("culture", "Universal")
-        location = self.story_location or "Story World"
-        era = self.story_era or "Story Time"
-        style = self.core_elements.get("setting", {}).get("style", "Realistic")
+        # 优先使用全局文化背景信息
+        culture = getattr(self, 'global_culture', self.core_elements.get("setting", {}).get("culture", "Universal"))
+        location = getattr(self, 'global_location', self.story_location or "Story World")
+        era = getattr(self, 'global_era', self.story_era or "Story Time")
+        style = getattr(self, 'global_style', self.core_elements.get("setting", {}).get("style", "Realistic"))
+        
+        print(f"使用全局文化背景生成提示词: {culture}, {location}, {era}")
         
         # 获取人物特征信息
         characters = self.core_elements.get("characters", {})
@@ -404,14 +392,15 @@ class StoryAnalyzer:
             Character information to include (DO NOT use character names, only describe their roles and appearances):
             {character_info}
             
-            FOCUS ON THESE ELEMENTS:
-            1. SPECIFIC CHARACTER EXPRESSIONS - Include detailed facial expressions (e.g., "determined gaze", "furrowed brow", "confident smile")
-            2. PRECISE BODY LANGUAGE - Describe exact poses and gestures (e.g., "hand firmly gripping sword", "shoulders tensed in anticipation")
-            3. DYNAMIC ACTIONS - Show movement and energy (e.g., "lunging forward", "carefully examining map")
-            4. CLOSE-UP DETAILS - Include important close-up elements when relevant (e.g., "weathered hands on ancient document", "tears welling in eyes")
-            5. CHARACTER APPEARANCE - Incorporate the character descriptions provided above, but NEVER use character names - refer to them by their role (e.g., "general", "soldier", "nobleman") or appearance
+            FOCUS ON THESE ELEMENTS BASED ON THE CONTEXT:
+            1. GRAND SCENES - For large-scale events, battles, or crowd scenes, focus on the overall atmosphere, scale, and environment (e.g., "vast battlefield with thousands of soldiers", "crowded marketplace bustling with activity")
+            2. LANDSCAPE & ENVIRONMENT - Describe natural or architectural elements that define the scene (e.g., "towering castle against stormy sky", "sunlight filtering through ancient forest")
+            3. ATMOSPHERIC ELEMENTS - Include lighting, weather, time of day that create mood (e.g., "golden sunset casting long shadows", "misty morning shrouding the mountains")
+            4. SPECIFIC CHARACTER EXPRESSIONS - When focusing on individuals, include detailed facial expressions (e.g., "determined gaze", "furrowed brow")
+            5. PRECISE BODY LANGUAGE - For character-focused scenes, describe exact poses and gestures (e.g., "hand firmly gripping sword")
+            6. DYNAMIC ACTIONS - Show movement and energy appropriate to the scene (e.g., "armies clashing on blood-soaked field", "dancers twirling across marble floor")
             
-            Format as: "[Setting], [Specific character actions with expressions], [Key visual details]"
+            Format as: "[Setting/Environment], [Scale and Atmosphere], [Character elements or crowd dynamics if relevant]"
             
             Use 40-50 words maximum. Focus on visually striking and emotionally resonant elements.
             Your response must be in English only.
@@ -421,7 +410,7 @@ class StoryAnalyzer:
             response = self.client.chat.completions.create(
                 model=self.model,
                 messages=[
-                    {"role": "system", "content": "You are a concise scene description generator that focuses only on essential visual elements for image generation. Always respond in English only."},
+                    {"role": "system", "content": "You are a scene description generator that balances grand scenes with character details. Adapt your focus based on the context - for battles, crowds, or landscapes, emphasize the environment and scale; for intimate moments, focus on character details. Always respond in English only."},
                     {"role": "user", "content": prompt}
                 ],
                 temperature=0.7,
@@ -478,6 +467,9 @@ class StoryAnalyzer:
                 # 移除风格词汇，让full_process.py控制风格
                 final_prompt = f"{culture}, {location}, {era}, {scene}"
             
+            # 最终检查，确保不会出现错误的文化背景
+            final_prompt = self._ensure_correct_culture_background(final_prompt)
+            
             return final_prompt
         except Exception as e:
             print(f"生成场景描述时出错: {e}")
@@ -498,12 +490,16 @@ class StoryAnalyzer:
         if segment_index is None or segment_index >= len(self.segment_analyses):
             return self.generate_scene_prompt(sentences)
         
-        # 使用特定段落的分析结果
+        # 使用特定段落的分析结果，但文化背景使用全局信息
         segment_analysis = self.segment_analyses[segment_index]
-        culture = segment_analysis.get("setting", {}).get("culture", "Universal")
-        location = segment_analysis.get("setting", {}).get("location", "Story World")
-        era = segment_analysis.get("setting", {}).get("era", "Story Time")
-        style = segment_analysis.get("setting", {}).get("style", "Realistic")
+        
+        # 强制使用全局文化背景信息
+        culture = getattr(self, 'global_culture', self.core_elements.get("setting", {}).get("culture", "Universal"))
+        location = getattr(self, 'global_location', self.story_location or "Story World")
+        era = getattr(self, 'global_era', self.story_era or "Story Time")
+        style = getattr(self, 'global_style', self.core_elements.get("setting", {}).get("style", "Realistic"))
+        
+        print(f"段落 {segment_index} 使用全局文化背景: {culture}, {location}, {era}")
         
         # 获取人物特征信息
         characters = segment_analysis.get("characters", {})
@@ -605,14 +601,15 @@ class StoryAnalyzer:
             Character information to include (DO NOT use character names, only describe their roles and appearances):
             {character_info}
             
-            FOCUS ON THESE ELEMENTS:
-            1. SPECIFIC CHARACTER EXPRESSIONS - Include detailed facial expressions (e.g., "determined gaze", "furrowed brow", "confident smile")
-            2. PRECISE BODY LANGUAGE - Describe exact poses and gestures (e.g., "hand firmly gripping sword", "shoulders tensed in anticipation")
-            3. DYNAMIC ACTIONS - Show movement and energy (e.g., "lunging forward", "carefully examining map")
-            4. CLOSE-UP DETAILS - Include important close-up elements when relevant (e.g., "weathered hands on ancient document", "tears welling in eyes")
-            5. CHARACTER APPEARANCE - Incorporate the character descriptions provided above, but NEVER use character names - refer to them by their role (e.g., "general", "soldier", "nobleman") or appearance
+            FOCUS ON THESE ELEMENTS BASED ON THE CONTEXT:
+            1. GRAND SCENES - For large-scale events, battles, or crowd scenes, focus on the overall atmosphere, scale, and environment (e.g., "vast battlefield with thousands of soldiers", "crowded marketplace bustling with activity")
+            2. LANDSCAPE & ENVIRONMENT - Describe natural or architectural elements that define the scene (e.g., "towering castle against stormy sky", "sunlight filtering through ancient forest")
+            3. ATMOSPHERIC ELEMENTS - Include lighting, weather, time of day that create mood (e.g., "golden sunset casting long shadows", "misty morning shrouding the mountains")
+            4. SPECIFIC CHARACTER EXPRESSIONS - When focusing on individuals, include detailed facial expressions (e.g., "determined gaze", "furrowed brow")
+            5. PRECISE BODY LANGUAGE - For character-focused scenes, describe exact poses and gestures (e.g., "hand firmly gripping sword")
+            6. DYNAMIC ACTIONS - Show movement and energy appropriate to the scene (e.g., "armies clashing on blood-soaked field", "dancers twirling across marble floor")
             
-            Format as: "[Setting], [Specific character actions with expressions], [Key visual details]"
+            Format as: "[Setting/Environment], [Scale and Atmosphere], [Character elements or crowd dynamics if relevant]"
             
             Use 40-50 words maximum. Focus on visually striking and emotionally resonant elements.
             Your response must be in English only.
@@ -622,7 +619,7 @@ class StoryAnalyzer:
             response = self.client.chat.completions.create(
                 model=self.model,
                 messages=[
-                    {"role": "system", "content": "You are a concise scene description generator that focuses only on essential visual elements for image generation. Always respond in English only."},
+                    {"role": "system", "content": "You are a scene description generator that balances grand scenes with character details. Adapt your focus based on the context - for battles, crowds, or landscapes, emphasize the environment and scale; for intimate moments, focus on character details. Always respond in English only."},
                     {"role": "user", "content": prompt}
                 ],
                 temperature=0.7,
@@ -674,6 +671,9 @@ class StoryAnalyzer:
             else:
                 # 移除风格词汇，让full_process.py控制风格
                 final_prompt = f"{culture}, {location}, {era}, {scene}"
+            
+            # 最终检查，确保不会出现错误的文化背景
+            final_prompt = self._ensure_correct_culture_background(final_prompt)
             
             return final_prompt
         except Exception as e:
@@ -786,4 +786,25 @@ class StoryAnalyzer:
         except Exception as e:
             print(f"读取音频信息时出错: {e}")
             return 2.0
+    
+    def _ensure_correct_culture_background(self, prompt: str) -> str:
+        """确保提示词中不会出现错误的文化背景"""
+        # 获取正确的全局文化背景
+        correct_culture = getattr(self, 'global_culture', self.core_elements.get("setting", {}).get("culture", "Universal"))
+        correct_location = getattr(self, 'global_location', self.story_location or "Story World")
+        correct_era = getattr(self, 'global_era', self.story_era or "Story Time")
+        
+        # 检查是否包含错误的文化背景
+        for incorrect_culture in self.incorrect_cultures:
+            if incorrect_culture in prompt and incorrect_culture not in correct_culture:
+                print(f"检测到错误的文化背景: {incorrect_culture}，将替换为正确的文化背景: {correct_culture}")
+                # 替换错误的文化背景
+                prompt = prompt.replace(f"{incorrect_culture}", f"{correct_culture}")
+                # 确保地点和时代也是正确的
+                if "Japan" in prompt and "Japan" not in correct_location:
+                    prompt = prompt.replace("Japan", correct_location)
+                if "1784" in prompt and "1784" not in correct_era:
+                    prompt = prompt.replace("1784", correct_era)
+        
+        return prompt
 

@@ -16,6 +16,14 @@ import sys
 import time
 import shutil
 
+# 设置系统编码为UTF-8，解决Windows命令行的编码问题
+if sys.stdout.encoding != 'utf-8':
+    if hasattr(sys.stdout, 'reconfigure'):
+        sys.stdout.reconfigure(encoding='utf-8')
+    elif hasattr(sys.stdout, 'buffer'):
+        import io
+        sys.stdout = io.TextIOWrapper(sys.stdout.buffer, encoding='utf-8', errors='backslashreplace')
+
 def clean_output_directories():
     """清理输出目录中的旧文件"""
     try:
@@ -88,7 +96,7 @@ def clean_output_directories():
     except Exception as e:
         print(f"清理输出目录时出错: {e}")
 
-def process_story(input_file: str, image_generator_type: str = "comfyui", aspect_ratio: str = None, image_style: str = None):
+def process_story(input_file: str, image_generator_type: str = "comfyui", aspect_ratio: str = None, image_style: str = None, comfyui_style: str = None):
     """
     完整的故事处理流程
     
@@ -97,6 +105,7 @@ def process_story(input_file: str, image_generator_type: str = "comfyui", aspect
         image_generator_type: 图像生成器类型，可选 "comfyui" 或 "midjourney"
         aspect_ratio: 图像比例，可选值为 "16:9", "9:16" 或 None (默认方形)，仅对midjourney有效
         image_style: 图像风格，例如: 'cinematic lighting, movie quality' 或 'ancient Chinese ink painting style'
+        comfyui_style: ComfyUI的风格选项，可选值为 "水墨", "手绘", "古风", "插画", "写实", "电影"
     """
     # 检查输入文件是否存在
     full_input_path = input_file
@@ -121,6 +130,8 @@ def process_story(input_file: str, image_generator_type: str = "comfyui", aspect
         print(f"图像比例: {aspect_ratio}")
     if image_style:
         print(f"图像风格: {image_style}")
+    if comfyui_style and image_generator_type.lower() == "comfyui":
+        print(f"ComfyUI风格: {comfyui_style}")
     
     # 创建所需目录
     for dir_name in ["output", "output/audio", "output/images", "output/texts", "output/videos"]:
@@ -178,7 +189,12 @@ def process_story(input_file: str, image_generator_type: str = "comfyui", aspect
         
         if image_generator_type.lower() == "comfyui":
             # 使用ComfyUI生成图像
-            generator = ComfyUIGenerator()
+            generator = ComfyUIGenerator(style=comfyui_style)
+            
+            # 打印可用的风格选项
+            available_styles = generator.get_available_styles()
+            print(f"可用的ComfyUI风格选项: {', '.join(available_styles)}")
+            
             for i, scene in enumerate(key_scenes):
                 # 确保提取正确的提示词
                 if isinstance(scene, dict) and 'prompt' in scene:
@@ -279,6 +295,8 @@ if __name__ == "__main__":
                         help="设置图像比例 (仅对midjourney有效): 16:9 (横屏) 或 9:16 (竖屏)")
     parser.add_argument("--image_style", 
                         help="设置图像风格，例如: 'cinematic lighting, movie quality' 或 'ancient Chinese ink painting style'")
+    parser.add_argument("--comfyui_style", 
+                        help="设置ComfyUI的风格选项，可选值为 '水墨', '手绘', '古风', '插画', '写实', '电影'")
     args = parser.parse_args()
 
     # 打印参数信息，便于调试
@@ -287,6 +305,7 @@ if __name__ == "__main__":
     print(f"  图像生成器: {args.image_generator}")
     print(f"  图像比例: {args.aspect_ratio}")
     print(f"  图像风格: {args.image_style}")
+    print(f"  ComfyUI风格: {args.comfyui_style}")
 
     # 设置图像生成器 (优先使用--image_generator)
     image_generator = args.image_generator
@@ -318,7 +337,7 @@ if __name__ == "__main__":
     print(f"使用输入文件: {input_file}")
     
     # 处理函数已经包含文件存在性检查，直接调用
-    result = process_story(input_file, image_generator, args.aspect_ratio, args.image_style) 
+    result = process_story(input_file, image_generator, args.aspect_ratio, args.image_style, args.comfyui_style) 
     
     if result is None or isinstance(result, str) and result.startswith("错误:"):
         sys.exit(1) 

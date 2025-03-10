@@ -7,9 +7,16 @@ import locale
 import sys
 from pathlib import Path
 
-# 获取系统默认编码
-system_encoding = locale.getpreferredencoding()
-print(f"系统默认编码: {system_encoding}")
+# 设置系统编码为UTF-8，解决Windows命令行的编码问题
+if sys.stdout.encoding != 'utf-8':
+    if hasattr(sys.stdout, 'reconfigure'):
+        sys.stdout.reconfigure(encoding='utf-8')
+    elif hasattr(sys.stdout, 'buffer'):
+        import io
+        sys.stdout = io.TextIOWrapper(sys.stdout.buffer, encoding='utf-8', errors='backslashreplace')
+
+# 获取系统编码
+system_encoding = 'utf-8'  # 强制使用UTF-8而不是系统默认编码
 
 # 示例文本
 example_texts = [
@@ -38,7 +45,7 @@ def list_video_files():
         return []
     return [f for f in files]
 
-def process_story(text_input, selected_file, image_generator_type, aspect_ratio, image_style_type, custom_style):
+def process_story(text_input, selected_file, image_generator_type, aspect_ratio, image_style_type, custom_style, comfyui_style=None):
     """处理故事，可以是直接输入的文本或选择的文件"""
     if not text_input and not selected_file:
         return "错误: 请输入文本或选择一个文件", None
@@ -87,6 +94,11 @@ def process_story(text_input, selected_file, image_generator_type, aspect_ratio,
         cmd.extend(["--image_style", final_style])
         print(f"添加图像风格: {final_style}")
     
+    # 如果使用ComfyUI并选择了风格，添加comfyui_style参数
+    if image_generator_type == "comfyui" and comfyui_style and comfyui_style != "默认(电影)":
+        cmd.extend(["--comfyui_style", comfyui_style])
+        print(f"添加ComfyUI风格: {comfyui_style}")
+    
     print(f"执行命令: {' '.join(cmd)}")
     
     # 运行命令并实时获取输出
@@ -95,15 +107,21 @@ def process_story(text_input, selected_file, image_generator_type, aspect_ratio,
         stdout=subprocess.PIPE, 
         stderr=subprocess.STDOUT,
         text=True,
-        encoding=system_encoding  # 使用系统默认编码而不是UTF-8
+        encoding='utf-8',  # 强制使用UTF-8编码
+        errors='replace'   # 添加错误处理策略
     )
     
     output = ""
     latest_video = None
     
     for line in process.stdout:
-        output += line
-        yield output, None
+        try:
+            output += line
+            yield output, None
+        except UnicodeError:
+            # 如果出现编码错误，添加一个替代消息
+            output += "[无法显示的字符]\n"
+            yield output, None
     
     process.wait()
     
@@ -162,6 +180,14 @@ with gr.Blocks(title="故事视频生成器", theme=gr.themes.Soft()) as demo:
                 )
             
             with gr.Row():
+                comfyui_style = gr.Radio(
+                    label="ComfyUI风格选择 (仅对ComfyUI有效)",
+                    choices=["默认(电影)", "水墨", "清新二次元", "古风", "童話2", "童話1", "电影"],
+                    value="默认(电影)",
+                    visible=True
+                )
+            
+            with gr.Row():
                 image_style_type = gr.Radio(
                     label="选择图像风格",
                     choices=["无风格", "电影级品质", "水墨画风格", "油画风格", "动漫风格", "写实风格", "梦幻风格", "自定义风格"],
@@ -173,7 +199,7 @@ with gr.Blocks(title="故事视频生成器", theme=gr.themes.Soft()) as demo:
                     placeholder="例如: cinematic lighting, detailed, 8k ultra HD...",
                     visible=True
                 )
-                
+            
             process_button = gr.Button("开始处理", variant="primary")
         
         with gr.Column(scale=3):
@@ -213,18 +239,21 @@ with gr.Blocks(title="故事视频生成器", theme=gr.themes.Soft()) as demo:
     # 事件处理
     refresh_button.click(list_input_files, outputs=file_dropdown)
     
-    # 当选择midjourney时显示图像比例选项
-    def update_aspect_ratio_visibility(generator_type):
-        return gr.update(visible=(generator_type == "midjourney"))
+    # 当选择midjourney时显示图像比例选项，当选择comfyui时显示ComfyUI风格选项
+    def update_visibility(generator_type):
+        return (
+            gr.update(visible=(generator_type == "midjourney")),  # aspect_ratio
+            gr.update(visible=(generator_type == "comfyui"))      # comfyui_style
+        )
     
     # 当选择自定义风格时显示自定义风格输入框
     def update_custom_style_visibility(style_type):
         return gr.update(visible=(style_type == "自定义风格"))
     
     image_generator.change(
-        update_aspect_ratio_visibility,
+        update_visibility,
         inputs=[image_generator],
-        outputs=[aspect_ratio]
+        outputs=[aspect_ratio, comfyui_style]
     )
     
     image_style_type.change(
@@ -236,7 +265,7 @@ with gr.Blocks(title="故事视频生成器", theme=gr.themes.Soft()) as demo:
     # 处理按钮点击事件
     process_button.click(
         process_story,
-        inputs=[text_input, file_dropdown, image_generator, aspect_ratio, image_style_type, custom_style],
+        inputs=[text_input, file_dropdown, image_generator, aspect_ratio, image_style_type, custom_style, comfyui_style],
         outputs=[output_text, video_output]
     )
     
@@ -249,12 +278,13 @@ with gr.Blocks(title="故事视频生成器", theme=gr.themes.Soft()) as demo:
     1. 直接在文本框中输入故事，或选择input_texts目录中的文件
     2. 选择图像生成方式: ComfyUI(本地) 或 Midjourney(API)
     3. 如果选择Midjourney，可以设置图像比例: 默认方形、16:9(横屏)或9:16(竖屏)
-    4. 选择图像风格
-    5. 点击"开始处理"按钮
-    6. 等待处理完成，查看输出日志
-    7. 生成的视频将在处理完成后直接显示在界面上
-    8. 您也可以在"已生成的视频"部分浏览和查看所有生成的视频
-    9. 视频播放器下方有下载按钮，可以将视频保存到本地
+    4. 如果选择ComfyUI，可以选择不同的风格: 水墨、手绘、古风、插画、写实或电影
+    5. 选择图像风格
+    6. 点击"开始处理"按钮
+    7. 等待处理完成，查看输出日志
+    8. 生成的视频将在处理完成后直接显示在界面上
+    9. 您也可以在"已生成的视频"部分浏览和查看所有生成的视频
+    10. 视频播放器下方有下载按钮，可以将视频保存到本地
     """)
 
 # 启动服务

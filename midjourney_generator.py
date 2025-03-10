@@ -272,9 +272,8 @@ class MidjourneyGenerator:
                 # 保存初始的四宫格图像
                 initial_image_url = initial_result.get("imageUrl")
                 if initial_image_url:
-                    # 创建一个带有_grid后缀的文件名，用于保存四宫格图像
-                    grid_filename = str(output_path).replace(".png", "_grid.png")
-                    self.download_image(initial_image_url, grid_filename)
+                    # 不再保存grid图片，只记录URL用于调试
+                    print(f"获取到初始四宫格图像URL: {initial_image_url}")
                 else:
                     print("未找到初始图像URL")
                     continue  # 尝试重新提交
